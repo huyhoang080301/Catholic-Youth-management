@@ -19,8 +19,8 @@ export default function QuanLyUserPage() {
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const { data } = await api.get<User[]>('/users')
-      return Array.isArray(data) ? data : (data as any)?.data ?? []
+      const { data } = await api.get<User[] | { data: User[] }>('/users')
+      return Array.isArray(data) ? data : (data as { data: User[] }).data ?? []
     },
   })
 
@@ -112,3 +112,4 @@ export default function QuanLyUserPage() {
     </div>
   )
 }
+

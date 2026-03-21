@@ -23,10 +23,11 @@ export default function LoginPage() {
     try {
       await login(email, password)
       router.push('/dashboard')
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
       setError(
-        err.response?.data?.message ||
-        err.message ||
+        axiosErr.response?.data?.message ||
+        axiosErr.message ||
         'Đăng nhập thất bại. Vui lòng thử lại.'
       )
     } finally {
@@ -96,3 +97,4 @@ export default function LoginPage() {
     </div>
   )
 }
+

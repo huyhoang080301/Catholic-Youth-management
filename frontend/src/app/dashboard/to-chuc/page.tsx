@@ -49,8 +49,8 @@ export default function ToChucPage() {
   const { data: units, isLoading } = useQuery({
     queryKey: ['organization-units'],
     queryFn: async () => {
-      const { data } = await api.get<OrganizationUnit[]>('/org-units/tree')
-      return Array.isArray(data) ? data : (data as any)?.data ?? []
+      const { data } = await api.get<OrganizationUnit[] | { data: OrganizationUnit[] }>('/org-units/tree')
+      return Array.isArray(data) ? data : (data as { data: OrganizationUnit[] }).data ?? []
     },
   })
 
@@ -103,3 +103,4 @@ export default function ToChucPage() {
     </div>
   )
 }
+

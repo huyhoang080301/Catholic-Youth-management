@@ -29,7 +29,11 @@ export function CreateUserModal({ onClose }: CreateUserModalProps) {
 
   const createUser = useMutation({
     mutationFn: async (data: CreateUserForm) => {
-      const payload: any = { email: data.email, password: data.password, fullName: data.fullName }
+      const payload: { email: string; password: string; fullName: string; phone?: string } = {
+        email: data.email,
+        password: data.password,
+        fullName: data.fullName,
+      }
       if (data.phone) payload.phone = data.phone
       const { data: res } = await api.post('/users', payload)
       return res
@@ -38,8 +42,9 @@ export function CreateUserModal({ onClose }: CreateUserModalProps) {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       onClose()
     },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || err.message || 'Có lỗi xảy ra')
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
+      setError(axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra')
     },
   })
 
@@ -131,3 +136,4 @@ export function CreateUserModal({ onClose }: CreateUserModalProps) {
     </div>
   )
 }
+

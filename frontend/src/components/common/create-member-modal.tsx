@@ -96,7 +96,7 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
   })
   const [error, setError] = useState('')
 
-  const set = (field: keyof CreateMemberForm, value: any) =>
+  const set = (field: keyof CreateMemberForm, value: CreateMemberForm[keyof CreateMemberForm]) =>
     setForm((f) => ({ ...f, [field]: value }))
 
   const setAddr = (field: keyof AddressForm, value: string) =>
@@ -120,7 +120,22 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
       const hasParent = data.parentInfo.fullName.trim()
       const hasSacraments = Object.values(data.sacraments).some((v) => v.trim())
 
-      const payload: any = {
+      const payload: Partial<CreateMemberForm & {
+        baptismName?: string
+        dateOfBirth?: string
+        gender?: string
+        phone?: string
+        address?: AddressForm
+        parentInfo?: ParentForm
+        baptismDate?: string
+        baptismPlace?: string
+        firstConfessionDate?: string
+        firstConfessionPlace?: string
+        firstCommunionDate?: string
+        firstCommunionPlace?: string
+        confirmationDate?: string
+        confirmationPlace?: string
+      }> = {
         fullName: data.fullName.trim(),
       }
       if (data.baptismName.trim()) payload.baptismName = data.baptismName.trim()
@@ -144,8 +159,9 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
       queryClient.invalidateQueries({ queryKey: ['members'] })
       onClose()
     },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || err.message || 'Có lỗi xảy ra')
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
+      setError(axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra')
     },
   })
 
@@ -308,3 +324,6 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
     </div>
   )
 }
+
+
+

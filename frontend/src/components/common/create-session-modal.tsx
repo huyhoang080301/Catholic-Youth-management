@@ -31,14 +31,19 @@ export function CreateSessionModal({ onClose }: CreateSessionModalProps) {
   const { data: units } = useQuery({
     queryKey: ['org-units'],
     queryFn: async () => {
-      const { data } = await api.get<OrganizationUnit[]>('/org-units')
-      return Array.isArray(data) ? data : (data as any)?.data ?? []
+      const { data } = await api.get<OrganizationUnit[] | { data: OrganizationUnit[] }>('/org-units')
+      return Array.isArray(data) ? data : (data as { data: OrganizationUnit[] }).data ?? []
     },
   })
 
   const createSession = useMutation({
     mutationFn: async (data: CreateSessionForm) => {
-      const payload: any = { title: data.title, date: data.date }
+      const payload: {
+        title: string
+        date: string
+        description?: string
+        organizationUnitId?: number
+      } = { title: data.title, date: data.date }
       if (data.description) payload.description = data.description
       if (data.organizationUnitId) payload.organizationUnitId = Number(data.organizationUnitId)
       const { data: res } = await api.post('/sessions', payload)
@@ -48,8 +53,9 @@ export function CreateSessionModal({ onClose }: CreateSessionModalProps) {
       queryClient.invalidateQueries({ queryKey: ['sessions'] })
       onClose()
     },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || err.message || 'Có lỗi xảy ra')
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
+      setError(axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra')
     },
   })
 
@@ -143,3 +149,4 @@ export function CreateSessionModal({ onClose }: CreateSessionModalProps) {
     </div>
   )
 }
+

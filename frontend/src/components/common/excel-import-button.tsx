@@ -50,8 +50,9 @@ export function ExcelImportButton({ uploadUrl, onSuccess, label = 'Import Excel'
       const importResult: ImportResult = await res.json()
       setResult(importResult)
       onSuccess?.(importResult)
-    } catch (err: any) {
-      setResult({ created: 0, failed: -1, errors: [err.message] })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      setResult({ created: 0, failed: -1, errors: [message] })
     } finally {
       setLoading(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -101,3 +102,4 @@ export function ExcelImportButton({ uploadUrl, onSuccess, label = 'Import Excel'
     </div>
   )
 }
+

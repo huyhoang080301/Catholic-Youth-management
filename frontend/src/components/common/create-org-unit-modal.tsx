@@ -39,8 +39,13 @@ export function CreateOrgUnitModal({ onClose }: CreateOrgUnitModalProps) {
 
   const createUnit = useMutation({
     mutationFn: async (data: typeof form) => {
-      const payload: any = { name: data.name, type: data.type }
-      if (data.branch) payload.branch = data.branch
+      const payload: {
+        name: string
+        type: UnitType | ''
+        branch?: Branch
+        description?: string
+      } = { name: data.name, type: data.type }
+      if (data.branch) payload.branch = data.branch as Branch
       if (data.description) payload.description = data.description
       const { data: res } = await api.post('/org-units', payload)
       return res
@@ -49,8 +54,9 @@ export function CreateOrgUnitModal({ onClose }: CreateOrgUnitModalProps) {
       queryClient.invalidateQueries({ queryKey: ['organization-units'] })
       onClose()
     },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || err.message || 'Có lỗi xảy ra')
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
+      setError(axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra')
     },
   })
 
@@ -148,3 +154,4 @@ export function CreateOrgUnitModal({ onClose }: CreateOrgUnitModalProps) {
     </div>
   )
 }
+

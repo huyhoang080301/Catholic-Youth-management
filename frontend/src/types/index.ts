@@ -63,6 +63,7 @@ export interface Parent {
   parish?: string
   diocese?: string
   addressId?: number
+  address?: Address
   isActive: boolean
   notes?: string
 }
@@ -119,6 +120,7 @@ export interface Session {
 export interface Attendance {
   id: number
   sessionId: number
+  session?: Session
   memberId: number
   member?: Member
   status: AttendanceStatus
@@ -172,3 +174,5 @@ export interface SessionSummary {
   excusedCount: number
   totalCount: number
 }
+
+

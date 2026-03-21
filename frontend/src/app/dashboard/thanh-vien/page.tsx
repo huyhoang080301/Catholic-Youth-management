@@ -21,8 +21,8 @@ export default function ThanhVienPage() {
   const { data: members, isLoading } = useQuery({
     queryKey: ['members'],
     queryFn: async () => {
-      const { data } = await api.get<Member[]>('/members')
-      return Array.isArray(data) ? data : (data as any)?.data ?? []
+      const { data } = await api.get<Member[] | { data: Member[] }>('/members')
+      return Array.isArray(data) ? data : (data as { data: Member[] }).data ?? []
     },
   })
 
@@ -106,3 +106,4 @@ export default function ThanhVienPage() {
     </div>
   )
 }
+
