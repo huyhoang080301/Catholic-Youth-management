@@ -18,12 +18,16 @@ export function NotificationItem({
   onMarkRead,
   onDelete,
 }: NotificationItemProps) {
-  const variants = {
+  const typeToVariant: Record<string, 'info' | 'success' | 'warning' | 'error'> = {
     info: 'info',
     success: 'success',
     warning: 'warning',
     error: 'error',
-  } as const
+    attendance_summary: 'info',
+    absent_alert: 'warning',
+    general: 'info',
+  }
+  const badgeVariant = typeToVariant[notification.type] ?? 'info'
 
   return (
     <Card
@@ -47,7 +51,7 @@ export function NotificationItem({
               {notification.body}
             </p>
             <div className="flex items-center justify-between mt-2">
-              <Badge variant={variants[notification.type]}>
+              <Badge variant={badgeVariant}>
                 {notification.type}
               </Badge>
               <span className="text-xs text-gray-500">
@@ -74,5 +78,8 @@ export function NotificationItem({
     </Card>
   )
 }
+
+
+
 
 
