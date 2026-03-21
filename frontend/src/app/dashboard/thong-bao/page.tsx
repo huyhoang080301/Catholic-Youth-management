@@ -19,7 +19,7 @@ export default function ThongBaoPage() {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )
 
-  const handleMarkRead = async (id: string) => {
+  const handleMarkRead = async (id: number) => {
     await markRead.mutateAsync(id)
   }
 
@@ -67,3 +67,4 @@ export default function ThongBaoPage() {
     </div>
   )
 }
+

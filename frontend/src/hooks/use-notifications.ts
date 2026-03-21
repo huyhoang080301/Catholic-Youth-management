@@ -24,7 +24,7 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (notificationId: string) => {
+    mutationFn: async (notificationId: number) => {
       await api.patch(`/notifications/${notificationId}/read`)
     },
     onSuccess: () => {
@@ -45,3 +45,4 @@ export function useMarkAllRead() {
     },
   })
 }
+

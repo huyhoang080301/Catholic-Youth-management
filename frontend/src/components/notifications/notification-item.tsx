@@ -9,8 +9,8 @@ import { X } from 'lucide-react'
 
 interface NotificationItemProps {
   notification: Notification
-  onMarkRead?: (id: string) => void
-  onDelete?: (id: string) => void
+  onMarkRead?: (id: number) => void
+  onDelete?: (id: number) => void
 }
 
 export function NotificationItem({
@@ -44,7 +44,7 @@ export function NotificationItem({
               )}
             </div>
             <p className="text-sm text-gray-700 mt-1">
-              {notification.message}
+              {notification.body}
             </p>
             <div className="flex items-center justify-between mt-2">
               <Badge variant={variants[notification.type]}>
@@ -74,3 +74,5 @@ export function NotificationItem({
     </Card>
   )
 }
+
+
