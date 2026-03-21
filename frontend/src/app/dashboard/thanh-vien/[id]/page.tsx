@@ -8,7 +8,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { formatDate } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
-import { Member, Attendance } from '@/types'
+import { Member, Attendance, AttendanceStatus } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
@@ -196,6 +196,7 @@ export default function MemberDetailPage() {
     </div>
   )
 }
+
 
 
 
