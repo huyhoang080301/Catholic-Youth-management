@@ -47,7 +47,7 @@ export function CreateOrgUnitModal({ onClose }: CreateOrgUnitModalProps) {
       } = { name: data.name, type: data.type }
       if (data.branch) payload.branch = data.branch as Branch
       if (data.description) payload.description = data.description
-      const { data: res } = await api.post('/org-units', payload)
+      const { data: res } = await api.post('/organization', payload)
       return res
     },
     onSuccess: () => {
@@ -154,4 +154,5 @@ export function CreateOrgUnitModal({ onClose }: CreateOrgUnitModalProps) {
     </div>
   )
 }
+
 

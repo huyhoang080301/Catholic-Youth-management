@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Patch,
+  Put,
   Delete,
   Body,
   Param,
@@ -48,6 +49,20 @@ export class OrganizationController {
   @Get(':id/members')
   getMembers(@Param('id', ParseIntPipe) id: number) {
     return this.organizationService.findMembers(id);
+  }
+
+  @Get(':id/team-members')
+  getTeamMembers(@Param('id', ParseIntPipe) id: number) {
+    return this.organizationService.findTeamMembers(id);
+  }
+
+  @Put(':id/team-members')
+  @UseGuards(JwtAuthGuard)
+  updateTeamMembers(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { memberIds: number[] },
+  ) {
+    return this.organizationService.updateTeamMembers(id, body.memberIds);
   }
 
   @Patch(':id')

@@ -45,6 +45,7 @@ export interface UserUnitRole {
 // Members
 export type Gender = 'male' | 'female'
 export type MemberLevel = 'cap_1' | 'cap_2' | 'cap_3'
+export type MemberStatus = 'active' | 'inactive' | 'on_leave' | 'reserved'
 
 export interface Address {
   id: number
@@ -90,12 +91,28 @@ export interface Member {
   confirmationDate?: string
   confirmationPlace?: string
   level?: MemberLevel
+  status?: MemberStatus
   organizationUnitId?: number
   organizationUnit?: OrganizationUnit
   isActive: boolean
   notes?: string
   createdAt: string
   updatedAt: string
+}
+
+export interface MemberStatusHistory {
+  id: number
+  memberId: number
+  transitionType: string
+  fromStatus?: string
+  toStatus?: string
+  fromOrganizationUnitId?: number
+  toOrganizationUnitId?: number
+  fromLevel?: string
+  toLevel?: string
+  reason?: string
+  performedBy?: string
+  createdAt: string
 }
 
 // Sessions and Attendance
@@ -146,7 +163,7 @@ export interface Notification {
   body: string
   type: NotificationType
   isRead: boolean
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   createdAt: string
 }
 
@@ -174,5 +191,6 @@ export interface SessionSummary {
   excusedCount: number
   totalCount: number
 }
+
 
 

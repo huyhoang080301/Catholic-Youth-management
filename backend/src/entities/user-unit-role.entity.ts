@@ -8,16 +8,11 @@ import {
 } from 'typeorm';
 import { User } from './user.entity';
 import { OrganizationUnit } from './organization-unit.entity';
+import { UnitRole } from '../common/enums';
+export { UnitRole };
+import { CAN_ATTEND_ROLES } from '../common/constants';
 
-export enum UnitRole {
-  ADMIN = 'admin',
-  CHU_NHIEM = 'chu_nhiem',
-  PHO_LOP = 'pho_lop',
-  HUYNH_TRUONG = 'huynh_truong',
-  PARENT = 'parent',
-}
-
-export const CAN_ATTEND_ROLES = [UnitRole.ADMIN, UnitRole.CHU_NHIEM, UnitRole.PHO_LOP, UnitRole.HUYNH_TRUONG];
+export { CAN_ATTEND_ROLES };
 
 @Entity('user_unit_roles')
 export class UserUnitRole {
@@ -47,4 +42,6 @@ export class UserUnitRole {
   @CreateDateColumn()
   createdAt!: Date;
 }
+
+
 

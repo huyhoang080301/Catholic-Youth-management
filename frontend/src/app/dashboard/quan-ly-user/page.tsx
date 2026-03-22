@@ -10,7 +10,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { CreateUserModal } from '@/components/common/create-user-modal'
 import { ExcelImportButton } from '@/components/common/excel-import-button'
 import { User } from '@/types'
-import { UserPlus, Trash2 } from 'lucide-react'
+import { UserPlus, Trash2, Download } from 'lucide-react'
 
 export default function QuanLyUserPage() {
   const queryClient = useQueryClient()
@@ -33,6 +33,11 @@ export default function QuanLyUserPage() {
     },
   })
 
+  const handleExportUsers = () => {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? ''
+    window.open(`${base}/users/export`, '_blank')
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -40,7 +45,15 @@ export default function QuanLyUserPage() {
           <h1 className="text-3xl font-bold text-gray-900">Quản lý tài khoản</h1>
           <p className="text-gray-600 mt-1">Danh sách người dùng hệ thống</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleExportUsers}
+          >
+            <Download className="h-4 w-4" />
+            Export DS
+          </Button>
           <ExcelImportButton
             uploadUrl="/users/import"
             label="Import Excel"
@@ -112,4 +125,6 @@ export default function QuanLyUserPage() {
     </div>
   )
 }
+
+
 

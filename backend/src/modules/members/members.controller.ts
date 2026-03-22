@@ -12,12 +12,16 @@ import {
   UseInterceptors,
   BadRequestException,
   UseGuards,
+  Res,
+  Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import * as XLSX from 'xlsx';
 import { MembersService } from './members.service';
 import { CreateMemberDto } from './dto/create-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
+import { TransferClassDto, TransferBranchDto, PromoteDto, SetStatusDto } from './dto/transition.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Gender, MemberLevel } from '../../entities/member.entity';
 
@@ -128,6 +132,11 @@ export class MembersController {
     return this.membersService.findById(id);
   }
 
+  @Get(':id/teams')
+  getMemberTeams(@Param('id', ParseIntPipe) id: number) {
+    return this.membersService.getMemberTeams(id);
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateMemberDto) {
@@ -139,6 +148,90 @@ export class MembersController {
   async delete(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
     await this.membersService.delete(id);
     return { message: 'Member deleted' };
+  }
+
+  // ─── Transition Endpoints ────────────────────────────────────────────────
+
+  @Patch(':id/transfer-class')
+  @UseGuards(JwtAuthGuard)
+  transferClass(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: TransferClassDto,
+    @Request() req: { user?: { email?: string; username?: string } },
+  ) {
+    const performedBy = req.user?.email ?? req.user?.username;
+    return this.membersService.transferClass(id, dto, performedBy);
+  }
+
+  @Patch(':id/transfer-branch')
+  @UseGuards(JwtAuthGuard)
+  transferBranch(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: TransferBranchDto,
+    @Request() req: { user?: { email?: string; username?: string } },
+  ) {
+    const performedBy = req.user?.email ?? req.user?.username;
+    return this.membersService.transferBranch(id, dto, performedBy);
+  }
+
+  @Patch(':id/promote')
+  @UseGuards(JwtAuthGuard)
+  promote(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: PromoteDto,
+    @Request() req: { user?: { email?: string; username?: string } },
+  ) {
+    const performedBy = req.user?.email ?? req.user?.username;
+    return this.membersService.promote(id, dto, performedBy);
+  }
+
+  @Patch(':id/set-status')
+  @UseGuards(JwtAuthGuard)
+  setStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SetStatusDto,
+    @Request() req: { user?: { email?: string; username?: string } },
+  ) {
+    const performedBy = req.user?.email ?? req.user?.username;
+    return this.membersService.setStatus(id, dto, performedBy);
+  }
+
+  @Get(':id/history')
+  getStatusHistory(@Param('id', ParseIntPipe) id: number) {
+    return this.membersService.getStatusHistory(id);
+  }
+
+  // ─── Auto-create User Account ────────────────────────────────────────────
+
+  @Post(':id/create-account')
+  @UseGuards(JwtAuthGuard)
+  createUserAccount(@Param('id', ParseIntPipe) id: number) {
+    return this.membersService.createUserAccount(id);
+  }
+
+  // ─── Export Endpoints ────────────────────────────────────────────────────
+
+  @Get('export/members')
+  async exportMembers(
+    @Res() res: Response,
+    @Query('unitId') unitId?: number,
+    @Query('isActive') isActive?: boolean,
+  ) {
+    const buffer = await this.membersService.exportMembersExcel({ unitId, isActive });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="danh-sach-thanh-vien.xlsx"');
+    res.send(buffer);
+  }
+
+  @Get('export/attendance-stats')
+  async exportAttendanceStats(
+    @Res() res: Response,
+    @Query('unitId') unitId?: number,
+  ) {
+    const buffer = await this.membersService.exportAttendanceStatsExcel(unitId);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="thong-ke-diem-danh.xlsx"');
+    res.send(buffer);
   }
 }
 

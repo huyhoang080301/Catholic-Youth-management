@@ -10,8 +10,10 @@ import {
   UploadedFile,
   UseInterceptors,
   BadRequestException,
+  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import * as XLSX from 'xlsx';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -88,6 +90,14 @@ export class UsersController {
     return results;
   }
 
+  @Get('export')
+  async exportUsers(@Res() res: Response) {
+    const buffer = await this.usersService.exportUsersExcel();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="danh-sach-tai-khoan.xlsx"');
+    res.send(buffer);
+  }
+
   @Get()
   findAll() {
     return this.usersService.findAll();
@@ -108,4 +118,5 @@ export class UsersController {
     return this.usersService.delete(id);
   }
 }
+
 

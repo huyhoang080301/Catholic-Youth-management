@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OrganizationUnit } from '../../entities/organization-unit.entity';
 import { Member } from '../../entities/member.entity';
+import { MemberTeam } from '../../entities/member-team.entity';
 import { CreateOrgUnitDto } from './dto/create-org-unit.dto';
 import { UpdateOrgUnitDto } from './dto/update-org-unit.dto';
 
@@ -25,8 +26,11 @@ export interface TeamStat {
   id: number;
   name: string;
   branch: string;
+  teamType: string;
   memberCount: number;
   members: { id: number; fullName: string }[];
+  leader?: { id: number; fullName: string } | null;
+  deputy?: { id: number; fullName: string } | null;
 }
 
 export interface OrgStats {
@@ -44,11 +48,23 @@ export class OrganizationService {
     private orgRepository: Repository<OrganizationUnit>,
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
+    @InjectRepository(MemberTeam)
+    private memberTeamRepository: Repository<MemberTeam>,
   ) {}
 
   async create(dto: CreateOrgUnitDto) {
-    const orgUnit = this.orgRepository.create(dto);
-    return this.orgRepository.save(orgUnit);
+    const { memberIds, ...rest } = dto;
+    const orgUnit = this.orgRepository.create(rest);
+    const saved = await this.orgRepository.save(orgUnit);
+
+    if (memberIds && memberIds.length > 0) {
+      const memberTeams = memberIds.map((memberId) =>
+        this.memberTeamRepository.create({ memberId, teamId: saved.id }),
+      );
+      await this.memberTeamRepository.save(memberTeams);
+    }
+
+    return saved;
   }
 
   async findAll() {
@@ -79,7 +95,7 @@ export class OrganizationService {
   async findById(id: number) {
     const orgUnit = await this.orgRepository.findOne({
       where: { id },
-      relations: ['parent', 'children'],
+      relations: ['parent', 'children', 'leader', 'deputy'],
     });
 
     if (!orgUnit) throw new NotFoundException('Organization unit not found');
@@ -94,6 +110,36 @@ export class OrganizationService {
       where: { organizationUnitId: id, isActive: true },
       order: { fullName: 'ASC' },
     });
+  }
+
+  async findTeamMembers(teamId: number) {
+    const team = await this.orgRepository.findOne({ where: { id: teamId } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    const memberTeams = await this.memberTeamRepository.find({
+      where: { teamId },
+      relations: ['member'],
+    });
+
+    return memberTeams.map((mt) => mt.member).filter(Boolean);
+  }
+
+  async updateTeamMembers(teamId: number, memberIds: number[]) {
+    const team = await this.orgRepository.findOne({ where: { id: teamId } });
+    if (!team) throw new NotFoundException('Team not found');
+
+    // Remove existing
+    await this.memberTeamRepository.delete({ teamId });
+
+    // Re-add
+    if (memberIds && memberIds.length > 0) {
+      const memberTeams = memberIds.map((memberId) =>
+        this.memberTeamRepository.create({ memberId, teamId }),
+      );
+      await this.memberTeamRepository.save(memberTeams);
+    }
+
+    return this.findTeamMembers(teamId);
   }
 
   async getStats(): Promise<OrgStats> {
@@ -154,20 +200,35 @@ export class OrganizationService {
       }),
     );
 
-    // Build team stats — include member names
+    // Build team stats — use MemberTeam table for member count
     const teamStats: TeamStat[] = await Promise.all(
       teams.map(async (t) => {
-        const members = await this.memberRepository.find({
-          where: { organizationUnitId: t.id, isActive: true },
-          select: ['id', 'fullName'],
-          order: { fullName: 'ASC' },
+        const memberTeams = await this.memberTeamRepository.find({
+          where: { teamId: t.id },
+          relations: ['member'],
         });
+        const teamMembers = memberTeams.map((mt) => mt.member).filter(Boolean);
+
+        let leader = null;
+        let deputy = null;
+        if (t.leaderId) {
+          const l = await this.memberRepository.findOne({ where: { id: t.leaderId }, select: ['id', 'fullName'] });
+          if (l) leader = { id: l.id, fullName: l.fullName };
+        }
+        if (t.deputyId) {
+          const d = await this.memberRepository.findOne({ where: { id: t.deputyId }, select: ['id', 'fullName'] });
+          if (d) deputy = { id: d.id, fullName: d.fullName };
+        }
+
         return {
           id: t.id,
           name: t.name,
           branch: t.branch,
-          memberCount: members.length,
-          members: members.map((m) => ({ id: m.id, fullName: m.fullName })),
+          teamType: t.teamType,
+          memberCount: teamMembers.length,
+          members: teamMembers.map((m) => ({ id: m.id, fullName: m.fullName })),
+          leader,
+          deputy,
         };
       }),
     );
@@ -182,7 +243,8 @@ export class OrganizationService {
   }
 
   async update(id: number, dto: UpdateOrgUnitDto) {
-    await this.orgRepository.update(id, dto);
+    const { memberIds, ...rest } = dto as UpdateOrgUnitDto & { memberIds?: number[] };
+    await this.orgRepository.update(id, rest);
     return this.findById(id);
   }
 

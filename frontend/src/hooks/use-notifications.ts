@@ -38,11 +38,12 @@ export function useMarkAllRead() {
 
   return useMutation({
     mutationFn: async () => {
-      await api.patch('/notifications/read-all')
+      await api.patch('/notifications/mark-all-read')
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 }
+
 

@@ -11,12 +11,8 @@ import {
 import { Session } from './session.entity';
 import { Member } from './member.entity';
 import { User } from './user.entity';
-
-export enum AttendanceStatus {
-  PRESENT = 'present',
-  ABSENT = 'absent',
-  EXCUSED = 'excused',
-}
+import { AttendanceStatus } from '../common/enums';
+export { AttendanceStatus };
 
 @Entity('attendances')
 @Unique(['sessionId', 'memberId'])
@@ -57,5 +53,7 @@ export class Attendance {
   @UpdateDateColumn()
   updatedAt!: Date;
 }
+
+
 
 

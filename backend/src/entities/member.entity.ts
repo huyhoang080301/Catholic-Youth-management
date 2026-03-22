@@ -12,17 +12,9 @@ import { OrganizationUnit } from './organization-unit.entity';
 import { Attendance } from './attendance.entity';
 import { Parent } from './parent.entity';
 import { Address } from './address.entity';
-
-export enum Gender {
-  MALE = 'male',
-  FEMALE = 'female',
-}
-
-export enum MemberLevel {
-  CAP_1 = 'cap_1',
-  CAP_2 = 'cap_2',
-  CAP_3 = 'cap_3',
-}
+import { MemberStatusHistory } from './member-status-history.entity';
+import { Gender, MemberLevel, MemberStatus } from '../common/enums';
+export { Gender, MemberLevel, MemberStatus };
 
 @Entity('members')
 export class Member {
@@ -101,8 +93,14 @@ export class Member {
   @Column({ default: true })
   isActive!: boolean;
 
+  @Column({ type: 'enum', enum: MemberStatus, default: MemberStatus.ACTIVE })
+  status!: MemberStatus;
+
   @Column({ nullable: true })
   notes!: string;
+
+  @OneToMany(() => MemberStatusHistory, (h) => h.member)
+  statusHistory!: MemberStatusHistory[];
 
   @CreateDateColumn()
   createdAt!: Date;
@@ -110,4 +108,9 @@ export class Member {
   @UpdateDateColumn()
   updatedAt!: Date;
 }
+
+
+
+
+
 

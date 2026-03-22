@@ -1,5 +1,6 @@
-import { IsDate, IsString, IsOptional, IsInt } from 'class-validator';
+import { IsDate, IsString, IsOptional, IsInt, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { SessionType } from '../../../entities/session.entity';
 
 export class CreateSessionDto {
   @IsDate()
@@ -17,5 +18,8 @@ export class CreateSessionDto {
   @IsOptional()
   @Type(() => Number)
   organizationUnitId?: number;
-}
 
+  @IsEnum(SessionType)
+  @IsOptional()
+  sessionType?: SessionType;
+}

@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Transactional } from 'typeorm-transactional';
 import { Attendance, AttendanceStatus } from '../../entities/attendance.entity';
 import { Session } from '../../entities/session.entity';
 import { Notification, NotificationType } from '../../entities/notification.entity';
@@ -23,6 +24,7 @@ export class AttendanceService {
     private memberRepo: Repository<Member>,
   ) {}
 
+  @Transactional()
   async upsert(sessionId: number, dto: UpsertAttendanceDto, userId: number) {
     const session = await this.sessionRepo.findOne({
       where: { id: sessionId },
@@ -42,7 +44,6 @@ export class AttendanceService {
         attendance.status = record.status;
         attendance.note = record.note ?? null;
         attendance.markedById = userId;
-        await this.attendanceRepo.save(attendance);
       } else {
         attendance = this.attendanceRepo.create({
           sessionId,
@@ -51,10 +52,9 @@ export class AttendanceService {
           note: record.note ?? null,
           markedById: userId,
         });
-        await this.attendanceRepo.save(attendance);
       }
 
-      records.push(attendance);
+      records.push(await this.attendanceRepo.save(attendance));
     }
 
     const allAttendances = await this.attendanceRepo.find({
@@ -137,4 +137,6 @@ export class AttendanceService {
     }
   }
 }
+
+
 

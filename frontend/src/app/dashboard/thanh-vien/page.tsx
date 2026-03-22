@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import api from '@/lib/api'
 import { Member } from '@/types'
-import { Search, UserPlus } from 'lucide-react'
+import { Search, UserPlus, Download, BarChart2 } from 'lucide-react'
 import { ExcelImportButton } from '@/components/common/excel-import-button'
 import { CreateMemberModal } from '@/components/common/create-member-modal'
 
@@ -31,6 +31,16 @@ export default function ThanhVienPage() {
     member.phone?.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const handleExportMembers = () => {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? ''
+    window.open(`${base}/members/export/members`, '_blank')
+  }
+
+  const handleExportAttendance = () => {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? ''
+    window.open(`${base}/members/export/attendance-stats`, '_blank')
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -38,7 +48,23 @@ export default function ThanhVienPage() {
           <h1 className="text-3xl font-bold text-gray-900">Thành viên</h1>
           <p className="text-gray-600 mt-1">Quản lý danh sách đoàn viên</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleExportMembers}
+          >
+            <Download className="h-4 w-4" />
+            Export DS
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleExportAttendance}
+          >
+            <BarChart2 className="h-4 w-4" />
+            Export thống kê
+          </Button>
           <ExcelImportButton
             uploadUrl="/members/import"
             label="Import Excel"
@@ -106,4 +132,6 @@ export default function ThanhVienPage() {
     </div>
   )
 }
+
+
 

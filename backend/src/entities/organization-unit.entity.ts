@@ -11,22 +11,8 @@ import {
 import { Member } from './member.entity';
 import { Session } from './session.entity';
 import { UserUnitRole } from './user-unit-role.entity';
-
-export enum UnitType {
-  XU_DOAN = 'xu_doan',
-  PHAN_DOAN = 'phan_doan',
-  CHI_DOAN = 'chi_doan',
-  LOP = 'lop',
-  DOI = 'doi',
-}
-
-export enum Branch {
-  CHIEN_CON = 'chien_con',
-  AU_NHI = 'au_nhi',
-  THIEU_NHI = 'thieu_nhi',
-  NGHIA_SI = 'nghia_si',
-  HIEP_SI = 'hiep_si',
-}
+import { UnitType, Branch, TeamType } from '../common/enums';
+export { UnitType, Branch, TeamType };
 
 @Entity('organization_units')
 export class OrganizationUnit {
@@ -60,6 +46,23 @@ export class OrganizationUnit {
 
   @OneToMany(() => UserUnitRole, (r) => r.organizationUnit)
   userRoles!: UserUnitRole[];
+
+  @Column({ nullable: true })
+  leaderId!: number;
+
+  @ManyToOne(() => Member, { nullable: true })
+  @JoinColumn({ name: 'leaderId' })
+  leader!: Member;
+
+  @Column({ nullable: true })
+  deputyId!: number;
+
+  @ManyToOne(() => Member, { nullable: true })
+  @JoinColumn({ name: 'deputyId' })
+  deputy!: Member;
+
+  @Column({ type: 'enum', enum: TeamType, nullable: true })
+  teamType!: TeamType;
 
   @Column({ nullable: true })
   description!: string;

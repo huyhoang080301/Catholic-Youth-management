@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as XLSX from 'xlsx';
 import { User } from '../../entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -58,4 +59,26 @@ export class UsersService {
     const result = await this.usersRepository.delete(id);
     if (result.affected === 0) throw new NotFoundException('User not found');
   }
+
+  async exportUsersExcel(): Promise<Buffer> {
+    const users = await this.findAll();
+
+    const rows = users.map((u, i) => ({
+      STT: i + 1,
+      'Họ và tên': u.fullName,
+      'Email': u.email,
+      'Điện thoại': u.phone ?? '',
+      'Giáo xứ': u.parish ?? '',
+      'Giáo phận': u.diocese ?? '',
+      'Trạng thái': u.isActive ? 'Hoạt động' : 'Bị khóa',
+      'Ngày tạo': new Date(u.createdAt).toLocaleDateString('vi-VN'),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Danh sách tài khoản');
+
+    return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  }
 }
+

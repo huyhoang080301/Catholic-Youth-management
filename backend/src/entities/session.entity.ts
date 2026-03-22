@@ -11,6 +11,7 @@ import {
 import { OrganizationUnit } from './organization-unit.entity';
 import { Attendance } from './attendance.entity';
 import { User } from './user.entity';
+import { SessionType } from '../common/enums';
 
 @Entity('sessions')
 export class Session {
@@ -42,6 +43,9 @@ export class Session {
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'createdById' })
   createdBy!: User;
+
+  @Column({ type: 'enum', enum: SessionType, default: SessionType.CLASS })
+  sessionType!: SessionType;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -16,22 +16,23 @@ interface CreateSessionForm {
 
 interface CreateSessionModalProps {
   onClose: () => void
+  defaultUnitId?: number
 }
 
-export function CreateSessionModal({ onClose }: CreateSessionModalProps) {
+export function CreateSessionModal({ onClose, defaultUnitId }: CreateSessionModalProps) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<CreateSessionForm>({
     title: '',
     date: '',
     description: '',
-    organizationUnitId: '',
+    organizationUnitId: defaultUnitId ? String(defaultUnitId) : '',
   })
   const [error, setError] = useState('')
 
   const { data: units } = useQuery({
     queryKey: ['org-units'],
     queryFn: async () => {
-      const { data } = await api.get<OrganizationUnit[] | { data: OrganizationUnit[] }>('/org-units')
+      const { data } = await api.get<OrganizationUnit[] | { data: OrganizationUnit[] }>('/organization')
       return Array.isArray(data) ? data : (data as { data: OrganizationUnit[] }).data ?? []
     },
   })
@@ -149,4 +150,6 @@ export function CreateSessionModal({ onClose }: CreateSessionModalProps) {
     </div>
   )
 }
+
+
 

@@ -7,12 +7,8 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 import { User } from './user.entity';
-
-export enum NotificationType {
-  ATTENDANCE_SUMMARY = 'attendance_summary',
-  ABSENT_ALERT = 'absent_alert',
-  GENERAL = 'general',
-}
+import { NotificationType } from '../common/enums';
+export { NotificationType };
 
 @Entity('notifications')
 export class Notification {
@@ -44,4 +40,6 @@ export class Notification {
   @CreateDateColumn()
   createdAt!: Date;
 }
+
+
 
