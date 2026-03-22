@@ -9,7 +9,7 @@ import {
   ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
-import { OrganizationService, OrgUnitNode } from './organization.service';
+import { OrganizationService, OrgUnitNode, OrgStats } from './organization.service';
 import { CreateOrgUnitDto } from './dto/create-org-unit.dto';
 import { UpdateOrgUnitDto } from './dto/update-org-unit.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -34,9 +34,20 @@ export class OrganizationController {
     return this.organizationService.findTree();
   }
 
+  @Get('stats')
+  @UseGuards(JwtAuthGuard)
+  getStats(): Promise<OrgStats> {
+    return this.organizationService.getStats();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.organizationService.findById(id);
+  }
+
+  @Get(':id/members')
+  getMembers(@Param('id', ParseIntPipe) id: number) {
+    return this.organizationService.findMembers(id);
   }
 
   @Patch(':id')
@@ -52,5 +63,3 @@ export class OrganizationController {
     return { message: 'Organization unit deleted' };
   }
 }
-
-
