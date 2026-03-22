@@ -19,6 +19,8 @@ export interface AuthResponse {
 // Organization and Units
 export type UnitType = 'xu_doan' | 'phan_doan' | 'chi_doan' | 'lop' | 'doi'
 export type Branch = 'chien_con' | 'au_nhi' | 'thieu_nhi' | 'nghia_si' | 'hiep_si'
+export type TeamType = 'in_branch' | 'cross_branch'
+export type SessionType = 'class' | 'general'
 
 export interface OrganizationUnit {
   id: number
@@ -28,6 +30,11 @@ export interface OrganizationUnit {
   parentId?: number
   description?: string
   children?: OrganizationUnit[]
+  leaderId?: number
+  leader?: { id: number; fullName: string }
+  deputyId?: number
+  deputy?: { id: number; fullName: string }
+  teamType?: TeamType
   createdAt: string
   updatedAt: string
 }
@@ -100,6 +107,14 @@ export interface Member {
   updatedAt: string
 }
 
+export interface MemberTeam {
+  id: number
+  memberId: number
+  teamId: number
+  team: OrganizationUnit
+  createdAt: string
+}
+
 export interface MemberStatusHistory {
   id: number
   memberId: number
@@ -127,6 +142,7 @@ export interface Session {
   date: string
   title: string
   description?: string
+  sessionType?: SessionType
   organizationUnitId?: number
   organizationUnit?: OrganizationUnit
   createdById?: number
@@ -191,6 +207,3 @@ export interface SessionSummary {
   excusedCount: number
   totalCount: number
 }
-
-
-

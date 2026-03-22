@@ -10,8 +10,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { formatDate } from '@/lib/utils'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
-import { Member, Attendance, AttendanceStatus, MemberStatusHistory } from '@/types'
-import { ArrowLeft, Download, UserPlus, ArrowRightLeft, History } from 'lucide-react'
+import { Member, Attendance, AttendanceStatus, MemberStatusHistory, MemberTeam } from '@/types'
+import { ArrowLeft, Download, UserPlus, ArrowRightLeft, History, Shield, Users } from 'lucide-react'
 import { MemberTransitionModal } from '@/components/members/member-transition-modal'
 
 const STATUS_LABELS: Record<string, string> = {
@@ -46,6 +46,7 @@ export default function MemberDetailPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [accountResult, setAccountResult] = useState<{ email: string; password: string } | null>(null)
   const [accountError, setAccountError] = useState('')
+  const [activeTab, setActiveTab] = useState<'info' | 'teams' | 'attendance'>('info')
 
   const { data: member, isLoading: memberLoading } = useQuery({
     queryKey: ['member', memberId],
@@ -72,6 +73,15 @@ export default function MemberDetailPage() {
       return data
     },
     enabled: !!memberId && showHistory,
+  })
+
+  const { data: memberTeams } = useQuery({
+    queryKey: ['member-teams', memberId],
+    queryFn: async () => {
+      const { data } = await api.get<MemberTeam[]>(`/members/${memberId}/teams`)
+      return Array.isArray(data) ? data : (data as { data: MemberTeam[] }).data ?? []
+    },
+    enabled: !!memberId,
   })
 
   const createAccountMutation = useMutation({
@@ -149,44 +159,39 @@ export default function MemberDetailPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{member.fullName}</h1>
               {member.baptismName && (
-                <p className="text-gray-500 mt-1">Tên thánh: <span className="font-medium text-gray-700">{member.baptismName}</span></p>
+                <p className="text-sm text-gray-600 mt-1">Tên thánh: <span className="font-semibold">{member.baptismName}</span></p>
               )}
               <div className="flex items-center gap-2 mt-2">
-                <Badge variant={member.isActive ? 'success' : 'default'}>
-                  {member.isActive ? 'Hoạt động' : 'Không hoạt động'}
-                </Badge>
-                <Badge variant={STATUS_VARIANTS[memberStatus] ?? 'default'}>
-                  {STATUS_LABELS[memberStatus] ?? memberStatus}
+                <Badge variant={STATUS_VARIANTS[memberStatus]}>
+                  {STATUS_LABELS[memberStatus]}
                 </Badge>
               </div>
             </div>
-
-            {/* Action buttons */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2">
               <Button
-                variant="outline"
                 onClick={() => setShowTransitionModal(true)}
                 className="flex items-center gap-2 text-sm"
               >
                 <ArrowRightLeft className="h-4 w-4" />
-                Chuyển lớp / Trạng thái
+                Chuyển đổi trạng thái
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => createAccountMutation.mutate()}
-                isLoading={createAccountMutation.isPending}
-                className="flex items-center gap-2 text-sm"
-              >
-                <UserPlus className="h-4 w-4" />
-                Tạo tài khoản
-              </Button>
+              {!member.user && (
+                <Button
+                  onClick={() => createAccountMutation.mutate()}
+                  className="flex items-center gap-2 text-sm"
+                  disabled={createAccountMutation.isPending}
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Tạo tài khoản
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={handleExportMember}
                 className="flex items-center gap-2 text-sm"
               >
                 <Download className="h-4 w-4" />
-                Export DS
+                Export danh sách
               </Button>
               <Button
                 variant="outline"
@@ -235,22 +240,173 @@ export default function MemberDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Lịch sử chuyển đổi */}
-      {showHistory && (
-        <div>
-          <h2 className="text-lg font-bold text-gray-900 mb-3">Lịch sử chuyển đổi</h2>
-          {history && history.length > 0 ? (
-            <div className="space-y-2">
-              {history.map((h) => (
-                <Card key={h.id}>
-                  <CardContent className="py-3 px-4">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">{h.transitionType.replace(/_/g, ' ')}</p>
-                        {h.reason && <p className="text-xs text-gray-500 mt-0.5">Lý do: {h.reason}</p>}
-                        {h.performedBy && <p className="text-xs text-gray-400">Thực hiện bởi: {h.performedBy}</p>}
+      {/* Tab selector */}
+      <div className="flex gap-1 border-b border-gray-200">
+        {(['info', 'teams', 'attendance'] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab === 'info' ? 'Thông tin' : tab === 'teams' ? 'Đội' : 'Điểm danh'}
+          </button>
+        ))}
+      </div>
+
+      {/* Info Tab Content */}
+      {activeTab === 'info' && (
+        <>
+          {/* Lịch sử chuyển đổi */}
+          {showHistory && (
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 mb-3">Lịch sử chuyển đổi</h2>
+              {history && history.length > 0 ? (
+                <div className="space-y-2">
+                  {history.map((h) => (
+                    <Card key={h.id}>
+                      <CardContent className="py-3 px-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">{h.transitionType.replace(/_/g, ' ')}</p>
+                            {h.reason && <p className="text-xs text-gray-500 mt-0.5">Lý do: {h.reason}</p>}
+                            {h.performedBy && <p className="text-xs text-gray-400">Thực hiện bởi: {h.performedBy}</p>}
+                          </div>
+                          <p className="text-xs text-gray-400">{formatDate(h.createdAt)}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-center text-gray-600 text-sm">Chưa có lịch sử chuyển đổi</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* Thông tin phụ huynh */}
+          {member.parent && (
+            <Card>
+              <CardHeader>
+                <h2 className="text-lg font-semibold text-gray-900">Thông tin phụ huynh</h2>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoRow label="Họ tên" value={member.parent.fullName} />
+                  <InfoRow label="Số điện thoại" value={member.parent.phone} />
+                  {parentAddressText && <InfoRow label="Địa chỉ" value={parentAddressText} />}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Các mốc bí tích */}
+          {hasSacraments && (
+            <Card>
+              <CardHeader>
+                <h2 className="text-lg font-semibold text-gray-900">Các mốc bí tích</h2>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  {member.baptismDate && (
+                    <>
+                      <InfoRow label="Ngày Rửa Tội" value={formatDate(member.baptismDate)} />
+                      <InfoRow label="Nơi Rửa Tội" value={member.baptismPlace} />
+                    </>
+                  )}
+                  {member.firstConfessionDate && (
+                    <>
+                      <InfoRow label="Ngày Xưng Tội lần đầu" value={formatDate(member.firstConfessionDate)} />
+                      <InfoRow label="Nơi Xưng Tội" value={member.firstConfessionPlace} />
+                    </>
+                  )}
+                  {member.firstCommunionDate && (
+                    <>
+                      <InfoRow label="Ngày Rước Lễ lần đầu" value={formatDate(member.firstCommunionDate)} />
+                      <InfoRow label="Nơi Rước Lễ" value={member.firstCommunionPlace} />
+                    </>
+                  )}
+                  {member.confirmationDate && (
+                    <>
+                      <InfoRow label="Ngày Thêm Sức" value={formatDate(member.confirmationDate)} />
+                      <InfoRow label="Nơi Thêm Sức" value={member.confirmationPlace} />
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Teams Tab Content */}
+      {activeTab === 'teams' && (
+        <div className="space-y-3">
+          {memberTeams && memberTeams.length > 0 ? (
+            memberTeams.map((mt) => (
+              <Card key={mt.id}>
+                <CardContent className="py-4 px-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900">{mt.team.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {mt.team.branch && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                            {mt.team.branch.replace('_', ' ')}
+                          </span>
+                        )}
+                        {mt.team.teamType && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${mt.team.teamType === 'cross_branch' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                            {mt.team.teamType === 'cross_branch' ? 'Liên ngành' : 'Trong ngành'}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-gray-400">{formatDate(h.createdAt)}</p>
+                    </div>
+                    <div className="text-right text-sm text-gray-500">
+                      {mt.team.leader && <p>Trưởng: {mt.team.leader.fullName}</p>}
+                      {mt.team.deputy && <p>Phó: {mt.team.deputy.fullName}</p>}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center text-gray-600">
+                  <Shield className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                  <p>Chưa tham gia đội nào</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Attendance Tab Content */}
+      {activeTab === 'attendance' && (
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 mb-4">Lịch sử điểm danh</h2>
+          {attendance && attendance.length > 0 ? (
+            <div className="space-y-3">
+              {attendance.map((record: Attendance) => (
+                <Card key={record.id}>
+                  <CardContent className="py-4 px-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-gray-900">{record.session?.title ?? `Buổi #${record.sessionId}`}</p>
+                        <p className="text-sm text-gray-600">{formatDate(record.createdAt)}</p>
+                      </div>
+                      <Badge variant={record.status === AttendanceStatus.PRESENT ? 'success' : record.status === AttendanceStatus.ABSENT ? 'error' : 'warning'}>
+                        {record.status === AttendanceStatus.PRESENT ? 'Có mặt' : record.status === AttendanceStatus.ABSENT ? 'Vắng mặt' : 'Nghỉ phép'}
+                      </Badge>
                     </div>
                   </CardContent>
                 </Card>
@@ -258,96 +414,13 @@ export default function MemberDetailPage() {
             </div>
           ) : (
             <Card>
-              <CardContent className="pt-4 pb-4">
-                <p className="text-center text-gray-600 text-sm">Chưa có lịch sử chuyển đổi</p>
+              <CardContent className="pt-6">
+                <p className="text-center text-gray-600">Chưa có lịch sử điểm danh</p>
               </CardContent>
             </Card>
           )}
         </div>
       )}
-
-      {/* Thông tin phụ huynh */}
-      {member.parent && (
-        <Card>
-          <CardHeader>
-            <h2 className="text-lg font-semibold text-gray-900">Thông tin phụ huynh</h2>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <InfoRow label="Họ tên" value={member.parent.fullName} />
-              <InfoRow label="Số điện thoại" value={member.parent.phone} />
-              {parentAddressText && <InfoRow label="Địa chỉ" value={parentAddressText} />}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Các mốc bí tích */}
-      {hasSacraments && (
-        <Card>
-          <CardHeader>
-            <h2 className="text-lg font-semibold text-gray-900">Các mốc bí tích</h2>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              {member.baptismDate && (
-                <>
-                  <InfoRow label="Ngày Rửa Tội" value={formatDate(member.baptismDate)} />
-                  <InfoRow label="Nơi Rửa Tội" value={member.baptismPlace} />
-                </>
-              )}
-              {member.firstConfessionDate && (
-                <>
-                  <InfoRow label="Ngày Xưng Tội lần đầu" value={formatDate(member.firstConfessionDate)} />
-                  <InfoRow label="Nơi Xưng Tội" value={member.firstConfessionPlace} />
-                </>
-              )}
-              {member.firstCommunionDate && (
-                <>
-                  <InfoRow label="Ngày Rước Lễ lần đầu" value={formatDate(member.firstCommunionDate)} />
-                  <InfoRow label="Nơi Rước Lễ" value={member.firstCommunionPlace} />
-                </>
-              )}
-              {member.confirmationDate && (
-                <>
-                  <InfoRow label="Ngày Thêm Sức" value={formatDate(member.confirmationDate)} />
-                  <InfoRow label="Nơi Thêm Sức" value={member.confirmationPlace} />
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Lịch sử điểm danh */}
-      <div>
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Lịch sử điểm danh</h2>
-        {attendance && attendance.length > 0 ? (
-          <div className="space-y-3">
-            {attendance.map((record: Attendance) => (
-              <Card key={record.id}>
-                <CardContent className="py-4 px-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-gray-900">{record.session?.title ?? `Buổi #${record.sessionId}`}</p>
-                      <p className="text-sm text-gray-600">{formatDate(record.createdAt)}</p>
-                    </div>
-                    <Badge variant={record.status === AttendanceStatus.PRESENT ? 'success' : record.status === AttendanceStatus.ABSENT ? 'error' : 'warning'}>
-                      {record.status === AttendanceStatus.PRESENT ? 'Có mặt' : record.status === AttendanceStatus.ABSENT ? 'Vắng mặt' : 'Nghỉ phép'}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-gray-600">Chưa có lịch sử điểm danh</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
 
       {/* Transition Modal */}
       {showTransitionModal && (
@@ -360,9 +433,3 @@ export default function MemberDetailPage() {
     </div>
   )
 }
-
-
-
-
-
-
