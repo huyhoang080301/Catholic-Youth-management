@@ -4,16 +4,18 @@ import { useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import api from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Spinner } from '@/components/ui/spinner'
 import { formatDate } from '@/lib/utils'
-import { ArrowLeft, Plus, Calendar, Users } from 'lucide-react'
+import { ArrowLeft, Plus, Calendar, Users, CalendarDays } from 'lucide-react'
 import { OrganizationUnit, Member, Session, Attendance, AttendanceStatus, AttendanceRecord } from '@/types'
 import { CreateSessionModal } from '@/components/common/create-session-modal'
 import { AttendanceList } from '@/components/attendance/attendance-list'
+import { SessionScheduleModal } from '@/components/attendance/session-schedule-modal'
 
 function useClassDetail(unitId: string) {
   return useQuery({
@@ -55,9 +57,9 @@ function useSubmitAttendance() {
 }
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
-  present: 'Co mat',
-  absent: 'Vang',
-  excused: 'Phep',
+  present: 'Có mặt',
+  absent: 'Vắng mặt',
+  excused: 'Nghỉ phép',
 }
 
 const STATUS_COLOR: Record<AttendanceStatus, string> = {
@@ -74,12 +76,14 @@ export default function ClassDetailPage() {
   const { data, isLoading } = useClassDetail(unitId)
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null)
   const [showCreateSession, setShowCreateSession] = useState(false)
+  const [showSchedule, setShowSchedule] = useState(false)
   const [attendanceMap, setAttendanceMap] = useState<Record<number, AttendanceStatus>>({})
   const [noteMap, setNoteMap] = useState<Record<number, string>>({})
   const [saved, setSaved] = useState(false)
 
   const { data: existingAttendance, isLoading: loadingAttendance } = useSessionAttendance(selectedSessionId)
   const submitAttendance = useSubmitAttendance()
+  const [showOnlyUnmarked, setShowOnlyUnmarked] = useState(false)
 
   // When attendance loads, populate attendanceMap from existing data
   const loadedSessionId = selectedSessionId
@@ -99,7 +103,7 @@ export default function ClassDetailPage() {
   const getStatus = (memberId: number): AttendanceStatus => {
     if (attendanceMap[memberId]) return attendanceMap[memberId]
     const existing = prevAttendance?.find((a) => a.memberId === memberId)
-    return existing?.status ?? 'absent'
+    return existing?.status ?? AttendanceStatus.ABSENT
   }
 
   const getNote = (memberId: number): string => {
@@ -110,8 +114,23 @@ export default function ClassDetailPage() {
 
   const toggleStatus = (memberId: number) => {
     const cur = getStatus(memberId)
-    const next: AttendanceStatus = cur === 'present' ? 'absent' : cur === 'absent' ? 'excused' : 'present'
+    const next: AttendanceStatus =
+      cur === AttendanceStatus.PRESENT
+        ? AttendanceStatus.ABSENT
+        : cur === AttendanceStatus.ABSENT
+          ? AttendanceStatus.EXCUSED
+          : AttendanceStatus.PRESENT
     setAttendanceMap((prev) => ({ ...prev, [memberId]: next }))
+  }
+
+  const markAllPresent = () => {
+    if (!data?.members) return
+    const updated: Record<number, AttendanceStatus> = {}
+    data.members.forEach((m) => {
+      updated[m.id] = AttendanceStatus.PRESENT
+    })
+    setAttendanceMap(updated)
+    toast.success(`Đã đánh dấu ${data.members.length} thành viên có mặt`)
   }
 
   const handleSave = async () => {
@@ -121,13 +140,19 @@ export default function ClassDetailPage() {
       status: getStatus(m.id),
       note: getNote(m.id) || undefined,
     }))
-    await submitAttendance.mutateAsync({ sessionId: selectedSessionId, records })
-    setSaved(true)
-    queryClient.invalidateQueries({ queryKey: ['attendance', selectedSessionId] })
+    try {
+      await submitAttendance.mutateAsync({ sessionId: selectedSessionId, records })
+      toast.success('Đã lưu điểm danh thành công!')
+      setSaved(true)
+      queryClient.invalidateQueries({ queryKey: ['attendance', selectedSessionId] })
+    } catch {
+      toast.error('Lưu điểm danh thất bại. Thử lại.')
+    }
   }
 
   const handleSessionCreated = () => {
     setShowCreateSession(false)
+    toast.success('Tạo buổi sinh hoạt thành công!')
     queryClient.invalidateQueries({ queryKey: ['class-detail', unitId] })
   }
 
@@ -144,9 +169,18 @@ export default function ClassDetailPage() {
   const { unit, members, sessions } = data
   const selectedSession = sessions.find((s) => s.id === selectedSessionId) ?? null
 
+  // Track which members already have attendance records (for filter)
+  const unmarkedCount = members.filter((m) => {
+    return !attendanceMap[m.id] && !prevAttendance?.some((a) => a.memberId === m.id)
+  }).length
+
   const presentCount = data.members.filter((m) => getStatus(m.id) === 'present').length
   const absentCount = data.members.filter((m) => getStatus(m.id) === 'absent').length
   const excusedCount = data.members.filter((m) => getStatus(m.id) === 'excused').length
+
+  const filteredMembers = showOnlyUnmarked
+    ? members.filter((m) => !attendanceMap[m.id] && !prevAttendance?.some((a) => a.memberId === m.id))
+    : members
 
   return (
     <div className="space-y-6">
@@ -155,13 +189,13 @@ export default function ClassDetailPage() {
         <Link href="/dashboard/diem-danh">
           <Button variant="ghost" className="gap-2 px-2">
             <ArrowLeft className="h-4 w-4" />
-            Quay lai
+            Quay lại
           </Button>
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">{unit.name}</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {members.length} doan sinh &middot; {sessions.length} buoi sinh hoat
+            {members.length} đoàn sinh &middot; {sessions.length} buổi sinh hoạt
           </p>
         </div>
         <Button
@@ -170,7 +204,15 @@ export default function ClassDetailPage() {
           onClick={() => setShowCreateSession(true)}
         >
           <Plus className="h-4 w-4" />
-          Tao buoi diem danh
+          Tạo buổi điểm danh
+        </Button>
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => setShowSchedule(true)}
+        >
+          <CalendarDays className="h-4 w-4" />
+          Tạo lịch cả năm
         </Button>
       </div>
 
@@ -179,19 +221,19 @@ export default function ClassDetailPage() {
         <div className="lg:col-span-1 space-y-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
             <Calendar className="h-4 w-4" />
-            Buoi sinh hoat ({sessions.length})
+            Buổi sinh hoạt ({sessions.length})
           </div>
 
           {sessions.length === 0 ? (
             <Card>
               <CardContent className="pt-6 text-center text-gray-500 text-sm">
-                Chua co buoi sinh hoat nao.
+                Chưa có buổi sinh hoạt nào.
                 <br />
                 <button
                   className="text-blue-600 underline mt-1"
                   onClick={() => setShowCreateSession(true)}
                 >
-                  Tao buoi dau tien
+                  Tạo buổi đầu tiên
                 </button>
               </CardContent>
             </Card>
@@ -224,20 +266,45 @@ export default function ClassDetailPage() {
             <Card>
               <CardContent className="pt-12 text-center text-gray-500">
                 <Calendar className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-                <p>Chon mot buoi sinh hoat de bat dau diem danh</p>
+                <p>Chọn một buổi sinh hoạt để bắt đầu điểm danh.</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <h2 className="font-semibold text-gray-900">{selectedSession?.title}</h2>
                   <p className="text-sm text-gray-500">{formatDate(selectedSession?.date ?? '')}</p>
                 </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="text-green-600 font-medium">{presentCount} co mat</span>
-                  <span className="text-red-600 font-medium">{absentCount} vang</span>
-                  <span className="text-yellow-600 font-medium">{excusedCount} phep</span>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    onClick={() => setShowOnlyUnmarked((v) => !v)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      showOnlyUnmarked
+                        ? 'bg-blue-50 border-blue-400 text-blue-700'
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                    }`}
+                  >
+                    Chưa điểm danh
+                    {unmarkedCount > 0 && (
+                      <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${
+                        showOnlyUnmarked ? 'bg-blue-600 text-white' : 'bg-orange-500 text-white'
+                      }`}>
+                        {unmarkedCount}
+                      </span>
+                    )}
+                  </button>
+                  <span className="text-green-600 font-medium text-sm">{presentCount} Có mặt</span>
+                  <span className="text-red-600 font-medium text-sm">{absentCount} Vắng mặt</span>
+                  <span className="text-yellow-600 font-medium text-sm">{excusedCount} Nghỉ phép</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={markAllPresent}
+                    className="text-xs gap-1.5 border-green-300 text-green-700 hover:bg-green-50 hover:border-green-400"
+                  >
+                    Tất cả có mặt
+                  </Button>
                 </div>
               </div>
 
@@ -245,11 +312,11 @@ export default function ClassDetailPage() {
                 <div className="flex justify-center py-8">
                   <Spinner />
                 </div>
-              ) : members.length === 0 ? (
+              ) : filteredMembers.length === 0 ? (
                 <Card>
                   <CardContent className="pt-6 text-center text-sm text-gray-500">
                     <Users className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                    Lop nay chua co doan sinh nao.
+                    {showOnlyUnmarked ? 'Tất cả đã được điểm danh!' : 'Lớp này chưa có đoàn sinh nào.'}
                   </CardContent>
                 </Card>
               ) : (
@@ -257,13 +324,13 @@ export default function ClassDetailPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="text-left px-4 py-3 font-medium text-gray-700">Ho va ten</th>
-                        <th className="text-center px-4 py-3 font-medium text-gray-700">Trang thai</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-700">Ghi chu</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-700">Họ và tên</th>
+                        <th className="text-center px-4 py-3 font-medium text-gray-700">Trạng thái</th>
+                        <th className="text-left px-4 py-3 font-medium text-gray-700">Ghi chú</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {members.map((member) => {
+                      {filteredMembers.map((member) => {
                         const status = getStatus(member.id)
                         return (
                           <tr key={member.id} className="hover:bg-gray-50">
@@ -288,7 +355,7 @@ export default function ClassDetailPage() {
                                 onChange={(e) =>
                                   setNoteMap((prev) => ({ ...prev, [member.id]: e.target.value }))
                                 }
-                                placeholder="Ly do..."
+                                placeholder="Lý do..."
                                 className="w-full text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-400"
                               />
                             </td>
@@ -300,19 +367,33 @@ export default function ClassDetailPage() {
                 </div>
               )}
 
-              {members.length > 0 && (
+              {filteredMembers.length > 0 && (
                 <div className="flex items-center justify-between pt-2">
                   {saved && (
-                    <p className="text-green-600 text-sm font-medium">Da luu thanh cong!</p>
+                    <p className="text-green-600 text-sm font-medium">Đã lưu thành công!</p>
                   )}
-                  <div className="ml-auto">
+                  <div className="ml-auto flex items-center gap-2">
+                    <a
+                      href={`http://localhost:3002/api/attendance-report/class/${unit.id}/members/export`}
+                      download
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                    >
+                      <span>DS Excel</span>
+                    </a>
+                    <a
+                      href={`http://localhost:3002/api/attendance-report/class/${unit.id}/export`}
+                      download
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                    >
+                      <span>Bao cao</span>
+                    </a>
                     <Button
                       variant="primary"
                       onClick={handleSave}
                       isLoading={submitAttendance.isPending}
                       disabled={submitAttendance.isPending}
                     >
-                      Luu diem danh
+                      Lưu điểm danh
                     </Button>
                   </div>
                 </div>
@@ -326,6 +407,15 @@ export default function ClassDetailPage() {
         <CreateSessionModal
           onClose={handleSessionCreated}
           defaultUnitId={unit.id}
+        />
+      )}
+      {showSchedule && (
+        <SessionScheduleModal
+          unitId={unit.id}
+          onClose={() => {
+            setShowSchedule(false)
+            queryClient.invalidateQueries({ queryKey: ['class-detail', unitId] })
+          }}
         />
       )}
     </div>

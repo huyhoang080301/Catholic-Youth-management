@@ -1,13 +1,39 @@
 // User and Auth
 export interface User {
   id: number
-  email: string
+  username: string
+  email?: string
   fullName: string
   phone?: string
   avatarUrl?: string
   parish?: string
   diocese?: string
   isActive: boolean
+  roles?: string[]
+}
+
+// Role constants
+export const ROLE_LABELS: Record<string, string> = {
+  admin: 'Quản trị viên',
+  chu_nhiem: 'Chủ nhiệm',
+  truong_ban: 'Trưởng ban',
+  pho_lop: 'Phó lớp',
+  huynh_truong: 'Hướng dẫn viên',
+  parent: 'Phụ huynh',
+}
+
+// Role helpers
+export function hasRole(user: User | null, ...roles: string[]): boolean {
+  if (!user?.roles || user.roles.length === 0) return false
+  return roles.some((r) => user.roles!.includes(r))
+}
+
+export function canManageMembers(user: User | null): boolean {
+  return hasRole(user, 'admin', 'chu_nhiem', 'truong_ban')
+}
+
+export function canTakeAttendance(user: User | null): boolean {
+  return hasRole(user, 'admin', 'chu_nhiem', 'truong_ban', 'pho_lop', 'huynh_truong')
 }
 
 export interface AuthResponse {
@@ -29,6 +55,7 @@ export interface OrganizationUnit {
   branch?: Branch
   parentId?: number
   description?: string
+  code?: string
   children?: OrganizationUnit[]
   leaderId?: number
   leader?: { id: number; fullName: string }
@@ -78,6 +105,7 @@ export interface Parent {
 
 export interface Member {
   id: number
+  memberCode?: string
   fullName: string
   baptismName?: string
   dateOfBirth?: string
@@ -101,6 +129,8 @@ export interface Member {
   status?: MemberStatus
   organizationUnitId?: number
   organizationUnit?: OrganizationUnit
+  branch?: Branch
+  teams?: MemberTeam[]
   isActive: boolean
   notes?: string
   createdAt: string
@@ -145,6 +175,7 @@ export interface Session {
   sessionType?: SessionType
   organizationUnitId?: number
   organizationUnit?: OrganizationUnit
+  teamIds?: number[]
   createdById?: number
   createdAt: string
   updatedAt: string

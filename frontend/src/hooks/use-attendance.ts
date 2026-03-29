@@ -81,6 +81,8 @@ interface CreateSessionPayload {
   title: string
   date: string
   organizationUnitId?: number
+  sessionType?: string
+  teamIds?: number[]
   description?: string
 }
 

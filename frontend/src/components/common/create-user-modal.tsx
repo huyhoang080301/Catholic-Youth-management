@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import api from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
+import { User } from '@/types'
 
 interface CreateUserForm {
   email: string
@@ -15,54 +17,73 @@ interface CreateUserForm {
 
 interface CreateUserModalProps {
   onClose: () => void
+  editingUser?: User
 }
 
-export function CreateUserModal({ onClose }: CreateUserModalProps) {
+export function CreateUserModal({ onClose, editingUser }: CreateUserModalProps) {
   const queryClient = useQueryClient()
+  const isEditing = !!editingUser
   const [form, setForm] = useState<CreateUserForm>({
-    email: '',
+    email: editingUser?.email ?? '',
     password: '',
-    fullName: '',
-    phone: '',
+    fullName: editingUser?.fullName ?? '',
+    phone: editingUser?.phone ?? '',
   })
   const [error, setError] = useState('')
 
-  const createUser = useMutation({
+  const saveUser = useMutation({
     mutationFn: async (data: CreateUserForm) => {
-      const payload: { email: string; password: string; fullName: string; phone?: string } = {
-        email: data.email,
-        password: data.password,
-        fullName: data.fullName,
+      if (isEditing) {
+        const payload: Record<string, unknown> = { fullName: data.fullName }
+        if (data.phone) payload.phone = data.phone
+        if (data.password) payload.password = data.password
+        const { data: res } = await api.patch(`/users/${editingUser!.id}`, payload)
+        return res
+      } else {
+        const payload: { email: string; password: string; fullName: string; phone?: string } = {
+          email: data.email,
+          password: data.password,
+          fullName: data.fullName,
+        }
+        if (data.phone) payload.phone = data.phone
+        const { data: res } = await api.post('/users', payload)
+        return res
       }
-      if (data.phone) payload.phone = data.phone
-      const { data: res } = await api.post('/users', payload)
-      return res
     },
     onSuccess: () => {
+      toast.success(isEditing ? 'Cập nhật tài khoản thành công!' : 'Tạo tài khoản thành công!')
       queryClient.invalidateQueries({ queryKey: ['users'] })
       onClose()
     },
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
-      setError(axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra')
+      const msg = axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra'
+      toast.error(msg)
+      setError(msg)
     },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!form.email || !form.password || !form.fullName) {
-      setError('Email, mật khẩu và họ tên là bắt buộc')
+    if (!form.fullName) {
+      setError('Họ tên là bắt buộc')
       return
     }
-    createUser.mutate(form)
+    if (!isEditing) {
+      if (!form.email) { setError('Email là bắt buộc'); return }
+      if (!form.password) { setError('Mật khẩu là bắt buộc'); return }
+    }
+    saveUser.mutate(form)
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Tạo tài khoản mới</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            {isEditing ? 'Sửa tài khoản' : 'Tạo tài khoản mới'}
+          </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="h-5 w-5" />
           </button>
@@ -80,24 +101,28 @@ export function CreateUserModal({ onClose }: CreateUserModalProps) {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="email@example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-          </div>
+          {!isEditing && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="email@example.com"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+          )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Mật khẩu *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {isEditing ? 'Mật khẩu mới (bỏ trống nếu không đổi)' : 'Mật khẩu *'}
+            </label>
             <input
               type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="Tối thiểu 6 ký tự"
+              placeholder={isEditing ? 'Bỏ trống nếu không đổi' : 'Tối thiểu 6 ký tự'}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
@@ -125,10 +150,10 @@ export function CreateUserModal({ onClose }: CreateUserModalProps) {
               type="submit"
               variant="primary"
               className="flex-1"
-              isLoading={createUser.isPending}
-              disabled={createUser.isPending}
+              isLoading={saveUser.isPending}
+              disabled={saveUser.isPending}
             >
-              Tạo tài khoản
+              {isEditing ? 'Lưu thay đổi' : 'Tạo tài khoản'}
             </Button>
           </div>
         </form>

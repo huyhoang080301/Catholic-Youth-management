@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useQueryClient, useQuery } from '@tanstack/react-query'
+import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,7 @@ import { useSessions } from '@/hooks/use-attendance'
 import { Spinner } from '@/components/ui/spinner'
 import { ExcelImportButton } from '@/components/common/excel-import-button'
 import { CreateSessionModal } from '@/components/common/create-session-modal'
-import { Plus, Users, Calendar, Globe } from 'lucide-react'
+import { Plus, Users, Calendar, Globe, Pencil, Trash2 } from 'lucide-react'
 import { OrganizationUnit, Session } from '@/types'
 
 type Tab = 'lop' | 'buoi' | 'chung'
@@ -71,31 +72,69 @@ function ClassCard({ unit }: { unit: OrganizationUnit }) {
   )
 }
 
-function GeneralSessionCard({ session }: { session: Session }) {
+function GeneralSessionCard({ session, onEdit, onDelete }: { session: Session; onEdit?: (s: Session) => void; onDelete?: (s: Session) => void }) {
+  const handleEdit = (e: React.MouseEvent) => {
+    if (onEdit) {
+      e.preventDefault()
+      e.stopPropagation()
+      onEdit(session)
+    }
+  }
+
+  const handleDelete = (e: React.MouseEvent) => {
+    if (onDelete) {
+      e.preventDefault()
+      e.stopPropagation()
+      onDelete(session)
+    }
+  }
+
   return (
-    <Link href={`/dashboard/diem-danh/${session.id}`}>
-      <Card className="cursor-pointer hover:shadow-md transition-shadow border border-gray-200">
-        <CardContent className="pt-5 pb-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="font-semibold text-gray-900 truncate">{session.title}</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {new Date(session.date).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-              </p>
-              {session.description && (
-                <p className="text-xs text-gray-400 mt-1 truncate">{session.description}</p>
-              )}
+    <div className="relative">
+      <Link href={`/dashboard/diem-danh/${session.id}`}>
+        <Card className="cursor-pointer hover:shadow-md transition-shadow border border-gray-200">
+          <CardContent className="pt-5 pb-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="font-semibold text-gray-900 truncate">{session.title}</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {new Date(session.date).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+                {session.description && (
+                  <p className="text-xs text-gray-400 mt-1 truncate">{session.description}</p>
+                )}
+              </div>
+              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
+                <Globe className="h-5 w-5 text-orange-500" />
+              </div>
             </div>
-            <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
-              <Globe className="h-5 w-5 text-orange-500" />
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              <p className="text-xs text-orange-600 font-medium">Xem chi tiết điểm danh →</p>
             </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-gray-100">
-            <p className="text-xs text-orange-600 font-medium">Xem chi tiết điểm danh →</p>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+          </CardContent>
+        </Card>
+      </Link>
+      <div className="absolute top-3 right-3 flex gap-1">
+        {onEdit && (
+          <button
+            onClick={handleEdit}
+            className="p-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-blue-600 transition-colors shadow-sm"
+            title="Chỉnh sửa"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            onClick={handleDelete}
+            className="p-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-500 hover:text-red-600 transition-colors shadow-sm"
+            title="Xóa"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -104,6 +143,7 @@ export default function DiemDanhPage() {
   const { data: classes, isLoading: loadingClasses } = useClasses()
   const queryClient = useQueryClient()
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [editingSession, setEditingSession] = useState<Session | null>(null)
   const [defaultSessionType, setDefaultSessionType] = useState<'class' | 'general'>('class')
   const [tab, setTab] = useState<Tab>('lop')
 
@@ -121,6 +161,20 @@ export default function DiemDanhPage() {
     setDefaultSessionType(type)
     setShowCreateModal(true)
   }
+
+  const deleteSession = useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/sessions/${id}`)
+    },
+    onSuccess: () => {
+      toast.success('Đã xóa buổi sinh hoạt')
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
+    },
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
+      toast.error(axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra')
+    },
+  })
 
   return (
     <div className="space-y-6">
@@ -236,6 +290,15 @@ export default function DiemDanhPage() {
                   absentCount={0}
                   excusedCount={0}
                   totalCount={0}
+                  onEdit={(s) => {
+                    setEditingSession(s)
+                    setShowCreateModal(true)
+                  }}
+                  onDelete={(s) => {
+                    if (confirm(`Xác nhận xóa buổi sinh hoạt "${s.title}"?`)) {
+                      deleteSession.mutate(s.id)
+                    }
+                  }}
                 />
               ))}
             </div>
@@ -244,7 +307,7 @@ export default function DiemDanhPage() {
               <CardContent className="pt-12">
                 <div className="text-center space-y-4">
                   <Calendar className="h-12 w-12 mx-auto text-gray-300" />
-                  <p className="text-gray-600 text-lg">Chưa có buổi sinh hoạt lớp nào</p>
+                  <p className="text-gray-600 text-lg">Chưa có buổi sinh hoạt lớp nào.</p>
                   <Button variant="primary" onClick={() => openCreateModal('class')}>
                     Tạo buổi đầu tiên
                   </Button>
@@ -269,7 +332,19 @@ export default function DiemDanhPage() {
           ) : sortedGeneralSessions.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {sortedGeneralSessions.map((session) => (
-                <GeneralSessionCard key={session.id} session={session} />
+                <GeneralSessionCard
+                  key={session.id}
+                  session={session}
+                  onEdit={(s) => {
+                    setEditingSession(s)
+                    setShowCreateModal(true)
+                  }}
+                  onDelete={(s) => {
+                    if (confirm(`Xác nhận xóa buổi sinh hoạt "${s.title}"?`)) {
+                      deleteSession.mutate(s.id)
+                    }
+                  }}
+                />
               ))}
             </div>
           ) : (
@@ -277,7 +352,7 @@ export default function DiemDanhPage() {
               <CardContent className="pt-12">
                 <div className="text-center space-y-4">
                   <Globe className="h-12 w-12 mx-auto text-gray-300" />
-                  <p className="text-gray-600 text-lg">Chưa có buổi sinh hoạt chung nào</p>
+                  <p className="text-gray-600 text-lg">Chưa có buổi sinh hoạt chung nào.</p>
                   <Button variant="primary" onClick={() => openCreateModal('general')}>
                     Tạo buổi sinh hoạt chung đầu tiên
                   </Button>
@@ -291,8 +366,10 @@ export default function DiemDanhPage() {
       {showCreateModal && (
         <CreateSessionModal
           defaultSessionType={defaultSessionType}
+          editingSession={editingSession ?? undefined}
           onClose={() => {
             setShowCreateModal(false)
+            setEditingSession(null)
             queryClient.invalidateQueries({ queryKey: ['sessions'] })
           }}
         />

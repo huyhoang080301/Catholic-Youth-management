@@ -11,6 +11,7 @@ import {
   UseInterceptors,
   BadRequestException,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
@@ -19,6 +20,10 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UserUnitRole } from '../../entities/user-unit-role.entity';
+import { UnitRole } from '../../common/enums/user.enum';
 
 interface ImportResult {
   created: number;
@@ -28,7 +33,11 @@ interface ImportResult {
 
 @Controller('users')
 export class UsersController {
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private usersService: UsersService,
+    @InjectRepository(UserUnitRole)
+    private userUnitRoleRepo: Repository<UserUnitRole>,
+  ) {}
 
   @Post()
   create(@Body() dto: CreateUserDto) {
@@ -111,6 +120,48 @@ export class UsersController {
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
+  }
+
+  // ─── Role Management ────────────────────────────────────────────────────
+
+  @Get(':id/roles')
+  @UseGuards(JwtAuthGuard)
+  getUserRoles(@Param('id', ParseIntPipe) id: number) {
+    return this.userUnitRoleRepo.find({ where: { userId: id } });
+  }
+
+  @Post(':id/roles')
+  @UseGuards(JwtAuthGuard)
+  async assignRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { role: string; organizationUnitId?: number },
+  ) {
+    // Remove existing role of same type if exists
+    await this.userUnitRoleRepo.delete({
+      userId: id,
+      role: body.role as UnitRole,
+      organizationUnitId: body.organizationUnitId,
+    });
+
+    const newRole = this.userUnitRoleRepo.create({
+      userId: id,
+      role: body.role as UnitRole,
+      organizationUnitId: body.organizationUnitId,
+      canAttend: true,
+    });
+    return this.userUnitRoleRepo.save(newRole);
+  }
+
+  @Delete(':id/roles/:roleId')
+  @UseGuards(JwtAuthGuard)
+  removeRole(@Param('id', ParseIntPipe) id: number, @Param('roleId', ParseIntPipe) roleId: number) {
+    return this.userUnitRoleRepo.delete({ id: roleId, userId: id });
+  }
+
+  @Patch(':id/active')
+  @UseGuards(JwtAuthGuard)
+  setActive(@Param('id', ParseIntPipe) id: number, @Body() body: { isActive: boolean }) {
+    return this.usersService.update(id, { isActive: body.isActive });
   }
 
   @Delete(':id')

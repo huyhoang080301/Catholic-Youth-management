@@ -13,13 +13,18 @@ import { Attendance } from './attendance.entity';
 import { Parent } from './parent.entity';
 import { Address } from './address.entity';
 import { MemberStatusHistory } from './member-status-history.entity';
+import { MemberTeam } from './member-team.entity';
 import { Gender, MemberLevel, MemberStatus } from '../common/enums';
-export { Gender, MemberLevel, MemberStatus };
+import { Branch } from '../common/enums/organization.enum';
+export { Gender, MemberLevel, MemberStatus, Branch };
 
 @Entity('members')
 export class Member {
   @PrimaryGeneratedColumn()
   id!: number;
+
+  @Column({ unique: true, nullable: true })
+  memberCode!: string;
 
   @Column()
   fullName!: string;
@@ -77,6 +82,9 @@ export class Member {
   @Column({ nullable: true })
   confirmationPlace!: string;
 
+  @Column({ type: 'enum', enum: Branch, nullable: true })
+  branch!: Branch;
+
   @Column({ type: 'enum', enum: MemberLevel, nullable: true })
   level!: MemberLevel;
 
@@ -101,6 +109,9 @@ export class Member {
 
   @OneToMany(() => MemberStatusHistory, (h) => h.member)
   statusHistory!: MemberStatusHistory[];
+
+  @OneToMany(() => MemberTeam, (mt) => mt.member)
+  teams!: MemberTeam[];
 
   @CreateDateColumn()
   createdAt!: Date;

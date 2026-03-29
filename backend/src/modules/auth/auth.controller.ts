@@ -11,15 +11,27 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser, JwtUser } from '../../common/decorators/current-user.decorator';
+import { UserUnitRole } from '../../entities/user-unit-role.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+interface MeResponse extends JwtUser {
+  roles: string[];
+}
 
 @Controller('auth')
 export class AuthController {
   private logger = new Logger(AuthController.name);
 
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    @InjectRepository(UserUnitRole)
+    private userUnitRoleRepo: Repository<UserUnitRole>,
+  ) {}
 
   @Post('login')
   async login(@Body() loginDto: LoginDto): Promise<AuthTokens> {
+    this.logger.log(`[LOGIN] Raw body: ${JSON.stringify({ ...loginDto, password: '***' })}`);
     return this.authService.login(loginDto);
   }
 
@@ -30,8 +42,10 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  getMe(@CurrentUser() user: JwtUser): JwtUser {
-    return user;
+  async getMe(@CurrentUser() user: JwtUser): Promise<MeResponse> {
+    const unitRoles = await this.userUnitRoleRepo.find({ where: { userId: user.id } });
+    const roles = unitRoles.map((ur) => ur.role);
+    return { ...user, roles };
   }
 
   @Post('logout')

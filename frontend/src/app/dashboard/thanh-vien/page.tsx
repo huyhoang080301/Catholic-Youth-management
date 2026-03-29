@@ -1,22 +1,50 @@
 'use client'
 
 import { useState } from 'react'
-import { useQueryClient, useQuery } from '@tanstack/react-query'
+import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { MemberCard } from '@/components/members/member-card'
 import { Card, CardContent } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
+import { RoleGate } from '@/components/common/role-gate'
 import api from '@/lib/api'
-import { Member } from '@/types'
+import { Member, MemberStatus, OrganizationUnit } from '@/types'
 import { Search, UserPlus, Download, BarChart2 } from 'lucide-react'
 import { ExcelImportButton } from '@/components/common/excel-import-button'
 import { CreateMemberModal } from '@/components/common/create-member-modal'
 
+const STATUS_FILTERS: { label: string; value: MemberStatus | 'all' }[] = [
+  { label: 'Tất cả', value: 'all' },
+  { label: 'Hoạt động', value: 'active' },
+  { label: 'Nghỉ học', value: 'inactive' },
+  { label: 'Tạm nghỉ', value: 'on_leave' },
+  { label: 'Bảo lưu', value: 'reserved' },
+]
+
+const PAGE_SIZE = 12
+
 export default function ThanhVienPage() {
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<MemberStatus | 'all'>('all')
+  const [classFilter, setClassFilter] = useState<string>('all')
+  const [teamFilter, setTeamFilter] = useState<string>('all')
+  const [page, setPage] = useState(1)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [editingMember, setEditingMember] = useState<Member | null>(null)
   const queryClient = useQueryClient()
+
+  const { data: orgUnits } = useQuery({
+    queryKey: ['org-units-all'],
+    queryFn: async () => {
+      const { data } = await api.get<OrganizationUnit[] | { data: OrganizationUnit[] }>('/organization')
+      return Array.isArray(data) ? data : (data as { data: OrganizationUnit[] }).data ?? []
+    },
+  })
+
+  const classUnits = orgUnits?.filter((u) => u.type === 'lop') ?? []
+  const allTeams = orgUnits?.filter((u) => u.type === 'doi') ?? []
 
   const { data: members, isLoading } = useQuery({
     queryKey: ['members'],
@@ -26,10 +54,33 @@ export default function ThanhVienPage() {
     },
   })
 
-  const filteredMembers = members?.filter((member) =>
-    member.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    member.phone?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredMembers = members?.filter((member) => {
+    const matchSearch =
+      member.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      member.memberCode?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchStatus = statusFilter === 'all' || member.status === statusFilter
+    const matchClass = classFilter === 'all' || member.organizationUnitId === Number(classFilter)
+    const matchTeam = teamFilter === 'all' || member.teams?.some((t) => t.teamId === Number(teamFilter))
+    return matchSearch && matchStatus && matchClass && matchTeam
+  })
+
+  const totalPages = Math.ceil((filteredMembers?.length ?? 0) / PAGE_SIZE)
+  const paginatedMembers = filteredMembers?.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const deleteMember = useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/members/${id}`)
+    },
+    onSuccess: () => {
+      toast.success('Đã xóa thành viên')
+      queryClient.invalidateQueries({ queryKey: ['members'] })
+    },
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
+      toast.error(axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra')
+    },
+  })
 
   const handleExportMembers = () => {
     const base = process.env.NEXT_PUBLIC_API_URL ?? ''
@@ -55,7 +106,7 @@ export default function ThanhVienPage() {
             onClick={handleExportMembers}
           >
             <Download className="h-4 w-4" />
-            Export DS
+            Xuất danh sách
           </Button>
           <Button
             variant="outline"
@@ -63,7 +114,7 @@ export default function ThanhVienPage() {
             onClick={handleExportAttendance}
           >
             <BarChart2 className="h-4 w-4" />
-            Export thống kê
+            Xuất thống kê
           </Button>
           <ExcelImportButton
             uploadUrl="/members/import"
@@ -89,11 +140,67 @@ export default function ThanhVienPage() {
       <div className="relative">
         <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
         <Input
-          placeholder="Tìm kiếm theo tên hoặc số điện thoại..."
+          placeholder="Tìm kiếm theo tên, số điện thoại hoặc mã số..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
           className="pl-10"
         />
+      </div>
+
+      {/* Class & Team filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <select
+          value={classFilter}
+          onChange={(e) => { setClassFilter(e.target.value); setPage(1) }}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+        >
+          <option value="all">Tất cả lớp</option>
+          {classUnits.map((u) => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
+        </select>
+
+        <select
+          value={teamFilter}
+          onChange={(e) => { setTeamFilter(e.target.value); setPage(1) }}
+          className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+        >
+          <option value="all">Tất cả đội</option>
+          {allTeams.map((u) => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
+        </select>
+
+        {(classFilter !== 'all' || teamFilter !== 'all') && (
+          <button
+            onClick={() => { setClassFilter('all'); setTeamFilter('all') }}
+            className="text-xs text-blue-600 underline hover:text-blue-800"
+          >
+            Xóa bộ lọc
+          </button>
+        )}
+      </div>
+
+      {/* Status filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {STATUS_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => { setStatusFilter(f.value); setPage(1) }}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+              statusFilter === f.value
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600'
+            }`}
+          >
+            {f.label}
+            {f.value !== 'all' && members && (
+              <span className="ml-1.5 text-xs opacity-75">
+                ({members.filter((m) => f.value === 'all' || m.status === f.value).length})
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {isLoading ? (
@@ -101,25 +208,62 @@ export default function ThanhVienPage() {
           <Spinner size="lg" />
         </div>
       ) : filteredMembers && filteredMembers.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredMembers.map((member) => (
-            <MemberCard key={member.id} member={member} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {paginatedMembers?.map((member) => (
+              <MemberCard
+                key={member.id}
+                member={member}
+                onEdit={(m) => { setEditingMember(m); setShowCreateModal(true) }}
+                onDelete={(m) => {
+                  if (confirm(`Xác nhận xóa thành viên "${m.fullName}"?`)) {
+                    deleteMember.mutate(m.id)
+                  }
+                }}
+              />
+            ))}
+          </div>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                ← Trước
+              </Button>
+              <span className="text-sm text-gray-600 px-2">
+                Trang {page} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                Sau →
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
         <Card>
           <CardContent className="pt-12">
             <p className="text-center text-gray-600">
               {members?.length === 0
-                ? 'Chưa có thành viên nào'
-                : 'Không tìm thấy thành viên phù hợp'}
+                ? 'Chưa có thành viên nào.'
+                : 'Không tìm thấy thành viên phù hợp.'}
             </p>
             {members?.length === 0 && (
               <div className="flex justify-center mt-4">
-                <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Thêm thành viên đầu tiên
-                </Button>
+                <RoleGate roles={['admin', 'chu_nhiem', 'truong_ban']}>
+                  <Button variant="primary" onClick={() => setShowCreateModal(true)}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Thêm thành viên đầu tiên
+                  </Button>
+                </RoleGate>
               </div>
             )}
           </CardContent>
@@ -127,7 +271,10 @@ export default function ThanhVienPage() {
       )}
 
       {showCreateModal && (
-        <CreateMemberModal onClose={() => setShowCreateModal(false)} />
+        <CreateMemberModal
+          onClose={() => { setShowCreateModal(false); setEditingMember(null) }}
+          editingMember={editingMember ?? undefined}
+        />
       )}
     </div>
   )

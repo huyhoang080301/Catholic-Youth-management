@@ -39,6 +39,8 @@ export interface OrgStats {
   totalMembers: number;
   classes: ClassStat[];
   teams: TeamStat[];
+  branchBreakdown: { branch: string; label: string; count: number }[];
+  genderBreakdown: { gender: string; label: string; count: number }[];
 }
 
 @Injectable()
@@ -73,6 +75,7 @@ export class OrganizationService {
 
   async findTree(): Promise<OrgUnitNode[]> {
     const all = await this.orgRepository.find({
+      relations: ['leader', 'deputy'],
       order: { id: 'ASC' },
     });
 
@@ -233,12 +236,62 @@ export class OrganizationService {
       }),
     );
 
+    // Branch breakdown
+    const branchCounts: { branch: string; count: string }[] =
+      await this.memberRepository
+        .createQueryBuilder('member')
+        .innerJoin('member.organizationUnit', 'unit')
+        .select('unit.branch', 'branch')
+        .addSelect('COUNT(member.id)', 'count')
+        .where('member.isActive = true')
+        .andWhere('unit.branch IS NOT NULL')
+        .groupBy('unit.branch')
+        .getRawMany();
+
+    const BRANCH_LABELS: Record<string, string> = {
+      chien_con: 'Chiên Con',
+      au_nhi: 'Ấu Nhi',
+      thieu_nhi: 'Thiếu Nhi',
+      nghia_si: 'Nghĩa Sĩ',
+      hiep_si: 'Hiệp Sĩ',
+    };
+
+    const branchBreakdown = branchCounts.map((r) => ({
+      branch: r.branch,
+      label: BRANCH_LABELS[r.branch] || r.branch,
+      count: parseInt(r.count, 10),
+    }));
+
+    // Gender breakdown
+    const genderCounts: { gender: string; count: string }[] =
+      await this.memberRepository
+        .createQueryBuilder('member')
+        .select('member.gender', 'gender')
+        .addSelect('COUNT(member.id)', 'count')
+        .where('member.isActive = true')
+        .andWhere('member.gender IS NOT NULL')
+        .groupBy('member.gender')
+        .getRawMany();
+
+    const GENDER_LABELS: Record<string, string> = {
+      male: 'Nam',
+      female: 'Nữ',
+    };
+
+    const genderBreakdown = genderCounts.map((r) => ({
+      gender: r.gender,
+      label: GENDER_LABELS[r.gender] || r.gender,
+      count: parseInt(r.count, 10),
+    }));
+
     return {
       totalClasses: classes.length,
       totalTeams: teams.length,
       totalMembers,
       classes: classStats,
       teams: teamStats,
+      branchBreakdown,
+      genderBreakdown,
     };
   }
 
@@ -252,5 +305,14 @@ export class OrganizationService {
     const result = await this.orgRepository.delete(id);
     if (result.affected === 0)
       throw new NotFoundException('Organization unit not found');
+  }
+
+  async joinByCode(code: string) {
+    const unit = await this.orgRepository.findOne({
+      where: { code },
+      relations: ['parent', 'leader', 'deputy'],
+    });
+    if (!unit) throw new NotFoundException(`No organization unit found with code: ${code}`);
+    return unit;
   }
 }

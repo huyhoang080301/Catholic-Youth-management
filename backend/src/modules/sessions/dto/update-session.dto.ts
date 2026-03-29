@@ -1,5 +1,6 @@
-import { IsDate, IsString, IsOptional } from 'class-validator';
+import { IsDate, IsString, IsOptional, IsArray, IsInt, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { SessionType } from '../../../common/enums';
 
 export class UpdateSessionDto {
   @IsDate()
@@ -14,4 +15,13 @@ export class UpdateSessionDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @IsEnum(SessionType)
+  @IsOptional()
+  sessionType?: SessionType;
+
+  @IsArray()
+  @IsInt({ each: true })
+  @IsOptional()
+  teamIds?: number[];
 }

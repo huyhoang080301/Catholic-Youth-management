@@ -1,10 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import api from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Branch, OrganizationUnit } from '@/types'
+
+const BRANCH_LABELS: Record<Branch, string> = {
+  chien_con: 'Chiên Con',
+  au_nhi: 'Ấu Nhi',
+  thieu_nhi: 'Thiếu Nhi',
+  nghia_si: 'Nghĩa Sĩ',
+  hiep_si: 'Hiệp Sĩ',
+}
 
 interface AddressForm {
   street: string
@@ -36,6 +46,8 @@ interface CreateMemberForm {
   dateOfBirth: string
   gender: string
   phone: string
+  organizationUnitId: string
+  branch: Branch | ''
   address: AddressForm
   parentInfo: ParentForm
   sacraments: SacramentForm
@@ -78,22 +90,45 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm'
 
+import { Member } from '@/types'
+
 interface CreateMemberModalProps {
   onClose: () => void
+  editingMember?: Member
 }
 
-export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
+interface MemberCredentials {
+  memberCode: string
+  password: string
+  fullName: string
+}
+
+export function CreateMemberModal({ onClose, editingMember }: CreateMemberModalProps) {
   const queryClient = useQueryClient()
+  const isEditing = !!editingMember
+
+  const { data: allUnits } = useQuery({
+    queryKey: ['org-units-modal'],
+    queryFn: async () => {
+      const { data } = await api.get<OrganizationUnit[] | { data: OrganizationUnit[] }>('/organization')
+      return Array.isArray(data) ? data : (data as { data: OrganizationUnit[] }).data ?? []
+    },
+  })
+  const classUnits = allUnits?.filter((u) => u.type === 'lop') ?? []
+
   const [form, setForm] = useState<CreateMemberForm>({
-    fullName: '',
-    baptismName: '',
-    dateOfBirth: '',
-    gender: '',
-    phone: '',
+    fullName: editingMember?.fullName ?? '',
+    baptismName: editingMember?.baptismName ?? '',
+    dateOfBirth: editingMember?.dateOfBirth ? editingMember.dateOfBirth.split('T')[0] : '',
+    gender: editingMember?.gender ?? '',
+    phone: editingMember?.phone ?? '',
+    organizationUnitId: editingMember?.organizationUnitId ? String(editingMember.organizationUnitId) : '',
+    branch: (editingMember?.branch as Branch) ?? '',
     address: emptyAddress(),
     parentInfo: emptyParent(),
     sacraments: emptySacraments(),
   })
+  const [credentials, setCredentials] = useState<MemberCredentials | null>(null)
   const [error, setError] = useState('')
 
   const set = (field: keyof CreateMemberForm, value: CreateMemberForm[keyof CreateMemberForm]) =>
@@ -125,6 +160,8 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
         dateOfBirth?: string
         gender?: string
         phone?: string
+        organizationUnitId?: number
+        branch?: string
         address?: AddressForm
         parentInfo?: ParentForm
         baptismDate?: string
@@ -142,6 +179,8 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
       if (data.dateOfBirth) payload.dateOfBirth = data.dateOfBirth
       if (data.gender) payload.gender = data.gender
       if (data.phone.trim()) payload.phone = data.phone.trim()
+      if (data.organizationUnitId) (payload as Record<string, unknown>).organizationUnitId = Number(data.organizationUnitId)
+      if (data.branch) payload.branch = data.branch
       if (hasAddress) payload.address = data.address
       if (hasParent) payload.parentInfo = { ...data.parentInfo }
       if (hasSacraments) {
@@ -152,16 +191,33 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
         if (s.confirmationDate) { payload.confirmationDate = s.confirmationDate; payload.confirmationPlace = s.confirmationPlace }
       }
 
-      const { data: res } = await api.post('/members', payload)
-      return res
+      if (isEditing) {
+        const { data: res } = await api.patch(`/members/${editingMember!.id}`, payload)
+        return res
+      } else {
+        const { data: res } = await api.post<{ member: { fullName: string }; memberCode: string; password: string }>('/members', payload)
+        return res
+      }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members'] })
-      onClose()
+    onSuccess: (data) => {
+      if (isEditing) {
+        toast.success('Cập nhật thành viên thành công!')
+        queryClient.invalidateQueries({ queryKey: ['members'] })
+        onClose()
+      } else {
+        toast.success('Thêm thành viên thành công!')
+        queryClient.invalidateQueries({ queryKey: ['members'] })
+        setCredentials({
+          memberCode: (data as { memberCode: string }).memberCode,
+          password: (data as { password: string }).password,
+          fullName: (data as { member: { fullName: string } }).member.fullName,
+        })
+      }
     },
     onError: (err: unknown) => {
       const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
-      setError(axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra')
+      const msg = axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra'
+      toast.error(msg)
     },
   })
 
@@ -172,6 +228,14 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
       setError('Họ tên là bắt buộc')
       return
     }
+    if (!form.organizationUnitId) {
+      setError('Vui lòng chọn lớp học')
+      return
+    }
+    if (!form.branch) {
+      setError('Vui lòng chọn ngành')
+      return
+    }
     createMember.mutate(form)
   }
 
@@ -179,7 +243,7 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
     <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg my-4">
         <div className="flex items-center justify-between p-5 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900">Thêm thành viên mới</h2>
+          <h2 className="text-lg font-bold text-gray-900">{isEditing ? 'Sửa thông tin thành viên' : 'Thêm thành viên mới'}</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="h-5 w-5" />
           </button>
@@ -208,6 +272,39 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
                 </select>
               </Field>
             </div>
+
+            <Field label="Lớp học *">
+              <select
+                value={form.organizationUnitId}
+                onChange={(e) => set('organizationUnitId', e.target.value)}
+                className={inputCls}
+              >
+                <option value="">-- Chọn lớp --</option>
+                {classUnits.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Ngành *">
+              <div className="grid grid-cols-5 gap-1.5">
+                {(Object.entries(BRANCH_LABELS) as [Branch, string][]).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => set('branch', value)}
+                    className={`py-1.5 px-1 rounded-lg border text-xs font-medium transition-colors ${
+                      form.branch === value
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+
             <Field label="Số điện thoại">
               <input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)}
                 placeholder="0901234567" className={inputCls} />
@@ -310,13 +407,37 @@ export function CreateMemberModal({ onClose }: CreateMemberModalProps) {
             <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           )}
 
+          {!isEditing && credentials && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-xl space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-green-600 text-lg">✓</span>
+                <p className="text-sm font-semibold text-green-800">
+                  Đã tạo tài khoản cho {credentials.fullName}
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
+                  <span className="text-xs text-gray-500">Mã số (tên đăng nhập)</span>
+                  <span className="text-sm font-mono font-bold text-blue-700">{credentials.memberCode}</span>
+                </div>
+                <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2">
+                  <span className="text-xs text-gray-500">Mật khẩu</span>
+                  <span className="text-sm font-mono font-bold text-orange-600">{credentials.password}</span>
+                </div>
+              </div>
+              <p className="text-xs text-green-700">
+                Hãy ghi lại mã số và mật khẩu để cung cấp cho thành viên. Đăng nhập: <span className="font-mono font-semibold">{credentials.memberCode}</span>
+              </p>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Hủy
+              {credentials ? 'Đóng' : 'Hủy'}
             </Button>
             <Button type="submit" variant="primary" className="flex-1"
-              isLoading={createMember.isPending} disabled={createMember.isPending}>
-              Thêm thành viên
+              isLoading={createMember.isPending} disabled={createMember.isPending || (!isEditing && !!credentials)}>
+              {isEditing ? 'Lưu thay đổi' : credentials ? 'Đã tạo' : 'Thêm thành viên'}
             </Button>
           </div>
         </form>

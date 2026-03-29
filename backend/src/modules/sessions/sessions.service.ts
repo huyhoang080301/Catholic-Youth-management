@@ -6,6 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Session } from '../../entities/session.entity';
 import { Member } from '../../entities/member.entity';
+import { MemberTeam } from '../../entities/member-team.entity';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 
@@ -16,6 +17,8 @@ export class SessionsService {
     private sessionsRepository: Repository<Session>,
     @InjectRepository(Member)
     private membersRepository: Repository<Member>,
+    @InjectRepository(MemberTeam)
+    private memberTeamRepository: Repository<MemberTeam>,
   ) {}
 
   async create(createSessionDto: CreateSessionDto, userId: number) {
@@ -59,10 +62,21 @@ export class SessionsService {
     });
 
     if (!session) throw new NotFoundException('Session not found');
-    if (!session.organizationUnitId) {
-      return [];
+
+    // General session: fetch members from selected teams
+    if (session.sessionType === 'general' && session.teamIds && session.teamIds.length > 0) {
+      const memberTeams = await this.memberTeamRepository
+        .createQueryBuilder('mt')
+        .leftJoinAndSelect('mt.member', 'member')
+        .where('mt.teamId IN (:...teamIds)', { teamIds: session.teamIds })
+        .andWhere('member.isActive = :isActive', { isActive: true })
+        .orderBy('member.fullName', 'ASC')
+        .getMany();
+      return memberTeams.map((mt) => mt.member).filter(Boolean);
     }
 
+    // Class session: fetch from organization unit
+    if (!session.organizationUnitId) return [];
     return this.membersRepository.find({
       where: { organizationUnitId: session.organizationUnitId, isActive: true },
       order: { fullName: 'ASC' },

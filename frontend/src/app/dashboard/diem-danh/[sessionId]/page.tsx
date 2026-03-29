@@ -11,6 +11,7 @@ import { useSession, useSessionMembers, useSubmitAttendance } from '@/hooks/use-
 import { AttendanceStatus } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
 
 export default function SessionAttendancePage() {
   const params = useParams()
@@ -38,9 +39,10 @@ export default function SessionAttendancePage() {
     }))
     try {
       await submitAttendance.mutateAsync({ sessionId, records })
+      toast.success('Đã lưu điểm danh thành công!')
       router.push('/dashboard/diem-danh')
     } catch (error) {
-      console.error('Failed to submit attendance:', error)
+      toast.error('Lưu điểm danh thất bại. Vui lòng thử lại.')
     }
   }
 
@@ -147,7 +149,7 @@ export default function SessionAttendancePage() {
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-gray-600">
-              Không có thành viên nào trong buổi sinh hoạt này
+              Không có thành viên nào trong buổi sinh hoạt này.
             </p>
           </CardContent>
         </Card>

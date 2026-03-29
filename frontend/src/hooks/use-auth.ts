@@ -10,12 +10,18 @@ export function useAuth() {
   const router = useRouter()
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (username: string, password: string) => {
       const { data } = await api.post<AuthResponse>('/auth/login', {
-        email,
+        username,
         password,
       })
       saveToken(data.accessToken, data.refreshToken)
+
+      // Fetch /auth/me immediately to get roles, then redirect
+      const { data: meData } = await api.get<AuthResponse['user'] & { roles?: string[] }>('/auth/me')
+      // Store roles in localStorage so AuthProvider picks them up
+      localStorage.setItem('tntt_user', JSON.stringify(meData))
+
       router.push('/dashboard')
     },
     [router]
@@ -28,6 +34,7 @@ export function useAuth() {
       // Continue logout even if API call fails
     } finally {
       clearTokens()
+      localStorage.removeItem('tntt_user')
       router.push('/auth/login')
     }
   }, [router])

@@ -37,6 +37,26 @@ export class MembersService {
     private memberTeamRepository: Repository<MemberTeam>,
   ) {}
 
+  private formatDobPassword(dob: Date): string {
+    const d = new Date(dob);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}${month}${year}`;
+  }
+
+  private buildMemberEmail(phone: string | undefined, fullName: string): string {
+    const base = phone
+      ? phone.replace(/\D/g, '')
+      : fullName.toLowerCase().replace(/\s+/g, '.').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return `${base}@tntt.local`;
+  }
+
+  private async generateMemberCode(): Promise<string> {
+    const count = await this.membersRepository.count();
+    return `TNTT${String(count + 1).padStart(5, '0')}`;
+  }
+
   @Transactional()
   async create(dto: CreateMemberDto) {
     const { address, parentInfo, ...rest } = dto;
@@ -73,20 +93,49 @@ export class MembersService {
       parentId = savedParent.id;
     }
 
+    const memberCode = await this.generateMemberCode();
     const member = this.membersRepository.create({
       ...rest,
+      memberCode,
       ...(addressId ? { addressId } : {}),
       ...(parentId ? { parentId } : {}),
     });
 
-    return this.membersRepository.save(member);
+    const savedMember = await this.membersRepository.save(member);
+
+    // Auto-create user account for the member
+    // username = memberCode so elderly users can login with their member code
+    const password = dto.dateOfBirth
+      ? this.formatDobPassword(dto.dateOfBirth)
+      : `Tntt@${Math.floor(100000 + Math.random() * 900000)}`;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const existingUser = await this.usersRepository.findOne({ where: { username: memberCode } });
+    if (!existingUser) {
+      await this.usersRepository.save(this.usersRepository.create({
+        username: memberCode,
+        email: dto.phone ? this.buildMemberEmail(dto.phone, dto.fullName) : undefined,
+        password: hashedPassword,
+        fullName: dto.fullName,
+        phone: dto.phone,
+        isActive: true,
+      }));
+    }
+
+    return {
+      member: savedMember,
+      memberCode,
+      password,
+    };
   }
 
   async findAll(filters?: { unitId?: number; isActive?: boolean; branch?: string }) {
-    const query = this.membersRepository.createQueryBuilder('member');
+    const query = this.membersRepository.createQueryBuilder('member')
+      .leftJoinAndSelect('member.organizationUnit', 'organizationUnit')
+      .leftJoinAndSelect('member.teams', 'memberTeam')
+      .leftJoinAndSelect('memberTeam.team', 'team');
 
     if (filters?.unitId) {
-      query.where('member.organizationUnitId = :unitId', { unitId: +filters.unitId });
+      query.andWhere('member.organizationUnitId = :unitId', { unitId: +filters.unitId });
     }
 
     if (filters?.isActive !== undefined) {
@@ -94,8 +143,7 @@ export class MembersService {
     }
 
     if (filters?.branch) {
-      query.leftJoin('member.organizationUnit', 'unit');
-      query.andWhere('unit.branch = :branch', { branch: filters.branch });
+      query.andWhere('organizationUnit.branch = :branch', { branch: filters.branch });
     }
 
     return query.getMany();
@@ -104,7 +152,7 @@ export class MembersService {
   async findById(id: number) {
     const member = await this.membersRepository.findOne({
       where: { id },
-      relations: ['organizationUnit', 'parent', 'address', 'parent.address'],
+      relations: ['organizationUnit', 'parent', 'address', 'parent.address', 'teams', 'teams.team'],
     });
 
     if (!member) throw new NotFoundException('Member not found');
@@ -241,31 +289,34 @@ export class MembersService {
   // ─── Auto-create User Account ─────────────────────────────────────────────
 
   @Transactional()
-  async createUserAccount(id: number): Promise<{ email: string; password: string }> {
+  async createUserAccount(id: number): Promise<{ memberCode: string; password: string }> {
     const member = await this.findById(id);
 
-    const emailBase = member.phone
-      ? member.phone.replace(/\D/g, '')
-      : member.fullName.toLowerCase().replace(/\s+/g, '.').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const email = `${emailBase}@tntt.local`;
-
-    const existing = await this.usersRepository.findOne({ where: { email } });
-    if (existing) {
-      throw new BadRequestException(`User account already exists: ${email}`);
+    if (!member.memberCode) {
+      member.memberCode = await this.generateMemberCode();
+      await this.membersRepository.save(member);
     }
 
-    const tempPassword = `Tntt@${Math.floor(100000 + Math.random() * 900000)}`;
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const existing = await this.usersRepository.findOne({ where: { username: member.memberCode } });
+    if (existing) {
+      throw new BadRequestException(`User account already exists for member: ${member.memberCode}`);
+    }
+
+    const password = member.dateOfBirth
+      ? this.formatDobPassword(member.dateOfBirth)
+      : `Tntt@${Math.floor(100000 + Math.random() * 900000)}`;
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     await this.usersRepository.save(this.usersRepository.create({
-      email,
+      username: member.memberCode,
+      email: member.phone ? this.buildMemberEmail(member.phone, member.fullName) : undefined,
       password: hashedPassword,
       fullName: member.fullName,
       phone: member.phone,
       isActive: true,
     }));
 
-    return { email, password: tempPassword };
+    return { memberCode: member.memberCode, password };
   }
 
   // ─── Export Excel ──────────────────────────────────────────────────────────

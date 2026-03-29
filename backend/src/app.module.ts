@@ -14,6 +14,7 @@ import { UserUnitRole } from './entities/user-unit-role.entity';
 import { Session } from './entities/session.entity';
 import { Attendance } from './entities/attendance.entity';
 import { Notification } from './entities/notification.entity';
+import { PendingRegistration } from './entities/pending-registration.entity';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { OrganizationModule } from './modules/organization/organization.module';
@@ -21,6 +22,11 @@ import { MembersModule } from './modules/members/members.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PendingRegistrationsModule } from './modules/pending-registrations/pending-registrations.module';
+import { SessionScheduleModule } from './modules/session-schedule/session-schedule.module';
+import { SessionSchedule } from './modules/session-schedule/session-schedule.entity';
+import { AttendanceReportModule } from './modules/attendance-report/attendance-report.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -46,6 +52,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
           Session,
           Attendance,
           Notification,
+          PendingRegistration,
+          SessionSchedule,
         ],
         synchronize: process.env.NODE_ENV !== 'production',
         logging: process.env.NODE_ENV === 'development',
@@ -56,6 +64,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
         return addTransactionalDataSource(dataSource);
       },
     }),
+    CommonModule,
     AuthModule,
     UsersModule,
     OrganizationModule,
@@ -63,6 +72,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     SessionsModule,
     AttendanceModule,
     NotificationsModule,
+    PendingRegistrationsModule,
+    SessionScheduleModule,
+    AttendanceReportModule,
   ],
 })
 export class AppModule {}

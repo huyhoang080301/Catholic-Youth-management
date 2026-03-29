@@ -1,4 +1,5 @@
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsEnum } from 'class-validator';
+import { MemberLevel, MemberStatus } from '../../../common/enums';
 
 export class TransferClassDto {
   @IsNumber()
@@ -19,14 +20,17 @@ export class TransferBranchDto {
 }
 
 export class PromoteDto {
+  @IsEnum(MemberLevel)
+  toLevel!: MemberLevel;
+
   @IsOptional()
   @IsString()
   reason?: string;
 }
 
 export class SetStatusDto {
-  @IsString()
-  status!: 'inactive' | 'on_leave' | 'reserved' | 'active';
+  @IsEnum(MemberStatus)
+  toStatus!: MemberStatus;
 
   @IsOptional()
   @IsString()

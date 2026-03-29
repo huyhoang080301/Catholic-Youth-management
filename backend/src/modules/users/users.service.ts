@@ -19,12 +19,13 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    const existingUser = await this.usersRepository.findOne({
-      where: { email: createUserDto.email },
-    });
+    const where: { email?: string; username?: string } = {};
+    if (createUserDto.email) where.email = createUserDto.email;
+    if (createUserDto.username) where.username = createUserDto.username;
 
+    const existingUser = await this.usersRepository.findOne({ where });
     if (existingUser) {
-      throw new ConflictException('Email already exists');
+      throw new ConflictException('Username or email already exists');
     }
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
@@ -42,6 +43,16 @@ export class UsersService {
     return user;
   }
 
+  async findByUsername(username: string) {
+    // username can be phone number, member code, or email
+    return this.usersRepository.findOne({
+      where: [
+        { username },
+        { email: username },
+      ],
+    });
+  }
+
   async findByEmail(email: string) {
     return this.usersRepository.findOne({ where: { email } });
   }
@@ -52,7 +63,7 @@ export class UsersService {
   }
 
   async findAll() {
-    return this.usersRepository.find();
+    return this.usersRepository.find({ select: ['id', 'username', 'email', 'fullName', 'phone', 'isActive', 'parish', 'diocese', 'createdAt'] });
   }
 
   async delete(id: number) {

@@ -34,7 +34,7 @@ export function ExcelImportButton({ uploadUrl, onSuccess, label = 'Import Excel'
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
       const res = await fetch(
-        (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001') + uploadUrl,
+        (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002') + uploadUrl,
         {
           method: 'POST',
           headers: token ? { Authorization: 'Bearer ' + token } : {},

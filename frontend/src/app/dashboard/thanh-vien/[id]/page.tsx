@@ -11,8 +11,10 @@ import { formatDate } from '@/lib/utils'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { Member, Attendance, AttendanceStatus, MemberStatusHistory, MemberTeam } from '@/types'
-import { ArrowLeft, Download, UserPlus, ArrowRightLeft, History, Shield, Users } from 'lucide-react'
+import { ArrowLeft, Download, UserPlus, ArrowRightLeft, History, Shield, Users, Pencil, Trash2 } from 'lucide-react'
 import { MemberTransitionModal } from '@/components/members/member-transition-modal'
+import { EditMemberModal } from '@/components/common/edit-member-modal'
+import toast from 'react-hot-toast'
 
 const STATUS_LABELS: Record<string, string> = {
   active: 'Hoạt động',
@@ -26,6 +28,12 @@ const STATUS_VARIANTS: Record<string, 'success' | 'warning' | 'error' | 'default
   inactive: 'error',
   on_leave: 'warning',
   reserved: 'default',
+}
+
+const LEVEL_LABELS: Record<string, string> = {
+  cap_1: 'Cấp 1',
+  cap_2: 'Cấp 2',
+  cap_3: 'Cấp 3',
 }
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
@@ -43,8 +51,9 @@ export default function MemberDetailPage() {
   const queryClient = useQueryClient()
 
   const [showTransitionModal, setShowTransitionModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
-  const [accountResult, setAccountResult] = useState<{ email: string; password: string } | null>(null)
+  const [accountResult, setAccountResult] = useState<{ memberCode: string; password: string } | null>(null)
   const [accountError, setAccountError] = useState('')
   const [activeTab, setActiveTab] = useState<'info' | 'teams' | 'attendance'>('info')
 
@@ -86,7 +95,7 @@ export default function MemberDetailPage() {
 
   const createAccountMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post<{ email: string; password: string }>(`/members/${memberId}/create-account`)
+      const { data } = await api.post<{ memberCode: string; password: string }>(`/members/${memberId}/create-account`)
       return data
     },
     onSuccess: (result) => {
@@ -97,6 +106,22 @@ export default function MemberDetailPage() {
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Đã có lỗi xảy ra'
       setAccountError(msg)
+    },
+  })
+
+  const deleteMember = useMutation({
+    mutationFn: async () => {
+      await api.delete(`/members/${memberId}`)
+    },
+    onSuccess: () => {
+      toast.success('Đã xóa thành viên')
+      queryClient.invalidateQueries({ queryKey: ['members'] })
+      window.location.href = '/dashboard/thanh-vien'
+    },
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
+      const msg = axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra'
+      toast.error(msg)
     },
   })
 
@@ -169,20 +194,37 @@ export default function MemberDetailPage() {
             </div>
             <div className="flex flex-col gap-2">
               <Button
+                variant="primary"
+                onClick={() => setShowEditModal(true)}
+                className="flex items-center gap-2 text-sm"
+              >
+                <Pencil className="h-4 w-4" />
+                Sửa thông tin
+              </Button>
+              <Button
                 onClick={() => setShowTransitionModal(true)}
                 className="flex items-center gap-2 text-sm"
               >
                 <ArrowRightLeft className="h-4 w-4" />
                 Chuyển đổi trạng thái
               </Button>
-              {!member.user && (
+              {member.isActive && (
                 <Button
                   onClick={() => createAccountMutation.mutate()}
                   className="flex items-center gap-2 text-sm"
                   disabled={createAccountMutation.isPending}
                 >
-                  <UserPlus className="h-4 w-4" />
-                  Tạo tài khoản
+                  {createAccountMutation.isPending ? (
+                    <>
+                      <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Đang tạo...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4" />
+                      Tạo tài khoản
+                    </>
+                  )}
                 </Button>
               )}
               <Button
@@ -191,7 +233,7 @@ export default function MemberDetailPage() {
                 className="flex items-center gap-2 text-sm"
               >
                 <Download className="h-4 w-4" />
-                Export danh sách
+                Xuất danh sách
               </Button>
               <Button
                 variant="outline"
@@ -199,7 +241,7 @@ export default function MemberDetailPage() {
                 className="flex items-center gap-2 text-sm"
               >
                 <Download className="h-4 w-4" />
-                Export thống kê
+                Xuất thống kê
               </Button>
               <Button
                 variant="outline"
@@ -209,6 +251,28 @@ export default function MemberDetailPage() {
                 <History className="h-4 w-4" />
                 Lịch sử chuyển đổi
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (confirm(`Xác nhận xóa thành viên "${member.fullName}"? Hành động này không thể hoàn tác.`)) {
+                    deleteMember.mutate()
+                  }
+                }}
+                className="flex items-center gap-2 text-sm text-red-600 border-red-200 hover:bg-red-50"
+                disabled={deleteMember.isPending}
+              >
+                {deleteMember.isPending ? (
+                  <>
+                    <span className="h-4 w-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+                    Đang xóa...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Xóa thành viên
+                  </>
+                )}
+              </Button>
             </div>
           </div>
 
@@ -216,7 +280,7 @@ export default function MemberDetailPage() {
           {accountResult && (
             <div className="mt-3 bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm">
               <p className="font-semibold text-green-800 mb-1">Tài khoản đã được tạo thành công</p>
-              <p className="text-green-700">Email: <span className="font-mono font-semibold">{accountResult.email}</span></p>
+              <p className="text-green-700">Mã số: <span className="font-mono font-semibold">{accountResult.memberCode}</span></p>
               <p className="text-green-700">Mật khẩu tạm: <span className="font-mono font-semibold">{accountResult.password}</span></p>
               <p className="text-xs text-green-600 mt-1">Vui lòng thông báo mật khẩu cho thành viên và yêu cầu đổi sau lần đăng nhập đầu tiên.</p>
             </div>
@@ -233,7 +297,7 @@ export default function MemberDetailPage() {
             <InfoRow label="Ngày sinh" value={member.dateOfBirth ? formatDate(member.dateOfBirth) : null} />
             <InfoRow label="Số điện thoại" value={member.phone} />
             <InfoRow label="Đơn vị" value={member.organizationUnit?.name} />
-            <InfoRow label="Cấp" value={member.level} />
+            <InfoRow label="Cấp" value={member.level ? (LEVEL_LABELS[member.level] ?? member.level) : null} />
             {addressText && <InfoRow label="Địa chỉ" value={addressText} />}
             {member.notes && <InfoRow label="Ghi chú" value={member.notes} />}
           </div>
@@ -382,7 +446,7 @@ export default function MemberDetailPage() {
               <CardContent className="pt-6">
                 <div className="text-center text-gray-600">
                   <Shield className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                  <p>Chưa tham gia đội nào</p>
+                  <p>Chưa tham gia đội nào.</p>
                 </div>
               </CardContent>
             </Card>
@@ -395,27 +459,73 @@ export default function MemberDetailPage() {
         <div>
           <h2 className="text-lg font-bold text-gray-900 mb-4">Lịch sử điểm danh</h2>
           {attendance && attendance.length > 0 ? (
-            <div className="space-y-3">
-              {attendance.map((record: Attendance) => (
-                <Card key={record.id}>
-                  <CardContent className="py-4 px-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-gray-900">{record.session?.title ?? `Buổi #${record.sessionId}`}</p>
-                        <p className="text-sm text-gray-600">{formatDate(record.createdAt)}</p>
-                      </div>
-                      <Badge variant={record.status === AttendanceStatus.PRESENT ? 'success' : record.status === AttendanceStatus.ABSENT ? 'error' : 'warning'}>
-                        {record.status === AttendanceStatus.PRESENT ? 'Có mặt' : record.status === AttendanceStatus.ABSENT ? 'Vắng mặt' : 'Nghỉ phép'}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            (() => {
+              // Group by month-year
+              const grouped = attendance.reduce<Record<string, Attendance[]>>((acc, record) => {
+                const date = new Date(record.createdAt)
+                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+                const label = `Tháng ${date.getMonth() + 1} / ${date.getFullYear()}`
+                if (!acc[key]) acc[key] = []
+                acc[key].push(record)
+                return acc
+              }, {})
+              return (
+                <div className="space-y-6">
+                  {Object.entries(grouped)
+                    .sort(([a], [b]) => b.localeCompare(a))
+                    .map(([key, records]) => {
+                      const monthLabel = (() => {
+                        const [year, month] = key.split('-')
+                        return `Tháng ${parseInt(month)} / ${year}`
+                      })()
+                      return (
+                        <div key={key}>
+                          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                            {monthLabel}
+                          </h3>
+                          <div className="space-y-2">
+                            {records
+                              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                              .map((record) => (
+                                <Card key={record.id} className="border-l-4 border-l-blue-200">
+                                  <CardContent className="py-3 px-5">
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <p className="font-semibold text-gray-900">
+                                          {record.session?.title ?? `Buổi #${record.sessionId}`}
+                                        </p>
+                                        <p className="text-sm text-gray-600">{formatDate(record.createdAt)}</p>
+                                      </div>
+                                      <Badge
+                                        variant={
+                                          record.status === AttendanceStatus.PRESENT
+                                            ? 'success'
+                                            : record.status === AttendanceStatus.ABSENT
+                                            ? 'error'
+                                            : 'warning'
+                                        }
+                                      >
+                                        {record.status === AttendanceStatus.PRESENT
+                                          ? 'Có mặt'
+                                          : record.status === AttendanceStatus.ABSENT
+                                          ? 'Vắng mặt'
+                                          : 'Nghỉ phép'}
+                                      </Badge>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              )
+            })()
           ) : (
             <Card>
               <CardContent className="pt-6">
-                <p className="text-center text-gray-600">Chưa có lịch sử điểm danh</p>
+                <p className="text-center text-gray-600">Chưa có lịch sử điểm danh.</p>
               </CardContent>
             </Card>
           )}
@@ -428,6 +538,14 @@ export default function MemberDetailPage() {
           memberId={member.id}
           memberName={member.fullName}
           onClose={() => setShowTransitionModal(false)}
+        />
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <EditMemberModal
+          memberId={member.id}
+          onClose={() => setShowEditModal(false)}
         />
       )}
     </div>

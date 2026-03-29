@@ -10,6 +10,12 @@ import { Spinner } from '@/components/ui/spinner'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { CalendarDays, Users, BookOpen, Shield, ChevronRight } from 'lucide-react'
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie,
+  AreaChart, Area,
+} from 'recharts'
+
+const BRANCH_COLORS = ['#60a5fa', '#a78bfa', '#34d399', '#fbbf24', '#f87171']
 
 const BRANCH_LABEL: Record<string, string> = {
   chien_con: 'Chiên Con',
@@ -41,6 +47,8 @@ interface OrgStats {
   totalMembers: number
   classes: ClassStat[]
   teams: TeamStat[]
+  branchBreakdown: { branch: string; label: string; count: number }[]
+  genderBreakdown: { gender: string; label: string; count: number }[]
 }
 
 function useOrgStats() {
@@ -53,9 +61,26 @@ function useOrgStats() {
   })
 }
 
+function useAttendanceTrend() {
+  return useQuery<{ month: string; rate: number; present: number; total: number }[]>({
+    queryKey: ['attendance-trend'],
+    queryFn: async () => {
+      const { data } = await api.get('/attendance-report/trend')
+      return data
+    },
+  })
+}
+
+const MONTH_LABELS: Record<string, string> = {
+  '01': 'Th1', '02': 'Th2', '03': 'Th3', '04': 'Th4',
+  '05': 'Th5', '06': 'Th6', '07': 'Th7', '08': 'Th8',
+  '09': 'Th9', '10': 'Th10', '11': 'Th11', '12': 'Th12',
+}
+
 export default function DashboardPage() {
   const { data: sessions, isLoading: sessionsLoading } = useSessions()
   const { data: stats, isLoading: statsLoading } = useOrgStats()
+  const { data: trend } = useAttendanceTrend()
   const today = new Date().toISOString().split('T')[0]
   const todaySession = sessions?.find((s) => s.date === today || s.date?.startsWith(today))
 
@@ -162,12 +187,129 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Charts */}
+      {stats && (stats.branchBreakdown?.length > 0 || stats.genderBreakdown?.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {stats.branchBreakdown && stats.branchBreakdown.length > 0 && (
+            <Card>
+              <CardHeader>
+                <h2 className="text-lg font-bold text-gray-900">Phân bổ theo ngành</h2>
+                <p className="text-sm text-gray-500">Số thành viên đang hoạt động theo từng ngành</p>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={stats.branchBreakdown} layout="vertical" margin={{ left: 10 }}>
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis type="category" dataKey="label" width={80} tick={{ fontSize: 12 }} />
+                    <Tooltip formatter={(v) => [v, 'Thành viên']} />
+                    <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                      {stats.branchBreakdown.map((entry, i) => (
+                        <Cell key={entry.branch} fill={BRANCH_COLORS[i % BRANCH_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+          {stats.genderBreakdown && stats.genderBreakdown.length > 0 && (
+            <Card>
+              <CardHeader>
+                <h2 className="text-lg font-bold text-gray-900">Phân bổ giới tính</h2>
+                <p className="text-sm text-gray-500">Tỷ lệ nam / nữ trong Đoàn</p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-center gap-6">
+                  <ResponsiveContainer width="50%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={stats.genderBreakdown}
+                        dataKey="count"
+                        nameKey="label"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={70}
+                        label={({ name, percent }: { name?: string; percent?: number }) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                      >
+                        {stats.genderBreakdown.map((entry) => (
+                          <Cell
+                            key={entry.gender}
+                            fill={entry.gender === 'male' ? '#60a5fa' : '#f472b6'}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-3">
+                    {stats.genderBreakdown.map((g) => (
+                      <div key={g.gender} className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: g.gender === 'male' ? '#60a5fa' : '#f472b6' }}
+                        />
+                        <span className="text-sm text-gray-700">{g.label}</span>
+                        <span className="text-sm font-bold text-gray-900">{g.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Attendance trend chart */}
+      {trend && trend.length > 0 && (
+        <Card>
+          <CardHeader>
+            <h2 className="text-lg font-bold text-gray-900">Xu hướng điểm danh</h2>
+            <p className="text-sm text-gray-500">Tỷ lệ có mặt theo tháng (12 tháng gần nhất)</p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={trend} margin={{ left: 10, right: 20 }}>
+                <defs>
+                  <linearGradient id="rateGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#60a5fa" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="month"
+                  tickFormatter={(v: string) => MONTH_LABELS[v.split('-')[1]] ?? v}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} width={40} />
+                <Tooltip
+                  formatter={(v: any) => [`${v}%`, 'Tỷ lệ có mặt']}
+                  labelFormatter={(label: any) => {
+                    if (!label || typeof label !== 'string') return String(label)
+                    const [year, month] = label.split('-')
+                    return `Thang ${MONTH_LABELS[month] ?? month} ${year}`
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="rate"
+                  stroke="#60a5fa"
+                  strokeWidth={2}
+                  fill="url(#rateGradient)"
+                  dot={{ r: 3, fill: '#60a5fa' }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Classes section */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Danh sach lop hoc</h2>
+          <h2 className="text-xl font-bold text-gray-900">Danh sách lớp học</h2>
           <Link href="/dashboard/diem-danh">
-            <Button variant="outline" size="sm">Xem tat ca</Button>
+            <Button variant="outline" size="sm">Xem tất cả</Button>
           </Link>
         </div>
         {statsLoading ? (
@@ -182,7 +324,7 @@ export default function DashboardPage() {
                       <div className="space-y-1 flex-1">
                         <p className="font-semibold text-gray-900">{cls.name}</p>
                         {cls.branch && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="default" className="text-xs">
                             {BRANCH_LABEL[cls.branch] || cls.branch}
                           </Badge>
                         )}
@@ -192,11 +334,11 @@ export default function DashboardPage() {
                     <div className="mt-4 flex items-center justify-between">
                       <div className="text-center">
                         <p className="text-2xl font-bold text-blue-600">{cls.memberCount}</p>
-                        <p className="text-xs text-gray-500">doan sinh</p>
+                        <p className="text-xs text-gray-500">đoàn sinh</p>
                       </div>
                       <div className="text-center">
                         <p className="text-2xl font-bold text-green-600">{cls.presentRate}%</p>
-                        <p className="text-xs text-gray-500">diem danh (30 ngay)</p>
+                        <p className="text-xs text-gray-500">điểm danh (30 ngày)</p>
                       </div>
                     </div>
                   </CardContent>
@@ -207,7 +349,7 @@ export default function DashboardPage() {
         ) : (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-center text-gray-600">Chua co lop hoc nao</p>
+              <p className="text-center text-gray-600">Chưa có lớp học nào.</p>
             </CardContent>
           </Card>
         )}
@@ -216,9 +358,9 @@ export default function DashboardPage() {
       {/* Teams section */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Danh sach doi</h2>
+          <h2 className="text-xl font-bold text-gray-900">Danh sách đội</h2>
           <Link href="/dashboard/to-chuc">
-            <Button variant="outline" size="sm">Quan ly to chuc</Button>
+            <Button variant="outline" size="sm">Quản lý tổ chức</Button>
           </Link>
         </div>
         {statsLoading ? (
@@ -232,14 +374,14 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-semibold text-gray-900">{team.name}</p>
                       {team.branch && (
-                        <Badge variant="secondary" className="text-xs mt-1">
+                        <Badge variant="default" className="text-xs mt-1">
                           {BRANCH_LABEL[team.branch] || team.branch}
                         </Badge>
                       )}
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-orange-600">{team.memberCount}</p>
-                      <p className="text-xs text-gray-500">thanh vien</p>
+                      <p className="text-xs text-gray-500">thành viên</p>
                     </div>
                   </div>
                   {team.members.length > 0 && (
@@ -261,7 +403,7 @@ export default function DashboardPage() {
         ) : (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-center text-gray-600">Chua co doi nao</p>
+              <p className="text-center text-gray-600">Chưa có đội nào.</p>
             </CardContent>
           </Card>
         )}
@@ -269,7 +411,7 @@ export default function DashboardPage() {
 
       {/* Recent sessions */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Buoi sinh hoat gan day</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Buổi sinh hoạt gần đây</h2>
         {sessionsLoading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
         ) : sessions && sessions.length > 0 ? (
@@ -286,7 +428,7 @@ export default function DashboardPage() {
                         )}
                         <p className="text-sm text-gray-600">{formatDate(session.date)}</p>
                       </div>
-                      <Button variant="outline" size="sm">Chi tiet</Button>
+                      <Button variant="outline" size="sm">Chi tiết</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -296,7 +438,7 @@ export default function DashboardPage() {
         ) : (
           <Card>
             <CardContent className="pt-6">
-              <p className="text-center text-gray-600">Chua co buoi sinh hoat nao</p>
+              <p className="text-center text-gray-600">Chưa có buổi sinh hoạt nào.</p>
             </CardContent>
           </Card>
         )}

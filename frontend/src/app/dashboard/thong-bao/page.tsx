@@ -5,27 +5,17 @@ import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { NotificationItem } from '@/components/notifications/notification-item'
 import { useNotifications, useMarkNotificationRead, useMarkAllRead } from '@/hooks/use-notifications'
-import { useQueryClient } from '@tanstack/react-query'
 
 export default function ThongBaoPage() {
   const { data: notifications, isLoading } = useNotifications()
   const markRead = useMarkNotificationRead()
   const markAllRead = useMarkAllRead()
-  const queryClient = useQueryClient()
 
   const unreadCount = notifications?.filter((n) => !n.isRead).length || 0
 
   const sortedNotifications = notifications?.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   )
-
-  const handleMarkRead = async (id: number) => {
-    await markRead.mutateAsync(id)
-  }
-
-  const handleMarkAllRead = async () => {
-    await markAllRead.mutateAsync()
-  }
 
   return (
     <div className="space-y-6">
@@ -37,7 +27,11 @@ export default function ThongBaoPage() {
           )}
         </div>
         {unreadCount > 0 && (
-          <Button variant="outline" onClick={handleMarkAllRead} isLoading={markAllRead.isPending}>
+          <Button
+            variant="outline"
+            onClick={() => markAllRead.mutate()}
+            isLoading={markAllRead.isPending}
+          >
             Đánh dấu tất cả là đã đọc
           </Button>
         )}
@@ -53,14 +47,14 @@ export default function ThongBaoPage() {
             <NotificationItem
               key={notification.id}
               notification={notification}
-              onMarkRead={handleMarkRead}
+              onMarkRead={(id) => markRead.mutate(id)}
             />
           ))}
         </div>
       ) : (
         <Card>
           <CardContent className="pt-12">
-            <p className="text-center text-gray-600">Không có thông báo nào</p>
+            <p className="text-center text-gray-600">Không có thông báo nào.</p>
           </CardContent>
         </Card>
       )}

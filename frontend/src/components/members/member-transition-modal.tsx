@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import api from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
@@ -80,12 +81,13 @@ export function MemberTransitionModal({ memberId, memberName, onClose }: Props) 
           'set-active': 'active',
         }
         await api.patch(`/members/${memberId}/set-status`, {
-          status: statusMap[action],
+          toStatus: statusMap[action],
           reason: reason || undefined,
         })
       }
     },
     onSuccess: () => {
+      toast.success(`${ACTION_LABELS[action]} thành công!`)
       setSuccess(`${ACTION_LABELS[action]} thành công`)
       queryClient.invalidateQueries({ queryKey: ['member', String(memberId)] })
       queryClient.invalidateQueries({ queryKey: ['members'] })

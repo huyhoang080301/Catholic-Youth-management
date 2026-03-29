@@ -5,6 +5,7 @@ export enum TransitionType {
   SET_INACTIVE = 'set_inactive',        // nghỉ học
   SET_ON_LEAVE = 'set_on_leave',        // tạm nghỉ
   SET_RESERVED = 'set_reserved',        // bảo lưu
+  SET_STATUS = 'set_status',            // đặt trạng thái
   REACTIVATE = 'reactivate',            // kích hoạt lại
 }
 

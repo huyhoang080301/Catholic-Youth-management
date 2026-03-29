@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -8,8 +10,9 @@ import { Spinner } from '@/components/ui/spinner'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { OrganizationUnit } from '@/types'
-import { ChevronRight, ChevronDown, Plus, Users, Crown, Star } from 'lucide-react'
+import { ChevronRight, ChevronDown, Plus, Users, Crown, Star, Shield, Pencil, Trash2 } from 'lucide-react'
 import { CreateOrgUnitModal } from '@/components/common/create-org-unit-modal'
+import { CreateTeamModal } from '@/components/common/create-team-modal'
 
 const UNIT_TYPE_LABELS: Record<string, string> = {
   xu_doan: 'Xứ đoàn',
@@ -32,14 +35,21 @@ const TEAM_TYPE_LABELS: Record<string, string> = {
   cross_branch: 'Liên ngành',
 }
 
-function UnitTreeNode({ unit, level = 0 }: { unit: OrganizationUnit; level?: number }) {
+interface UnitTreeNodeProps {
+  unit: OrganizationUnit
+  level?: number
+  onEdit: (unit: OrganizationUnit) => void
+  onDelete: (unit: OrganizationUnit) => void
+}
+
+function UnitTreeNode({ unit, level = 0, onEdit, onDelete }: UnitTreeNodeProps) {
   const [expanded, setExpanded] = useState(true)
   const hasChildren = unit.children && unit.children.length > 0
 
   return (
     <div>
       <div
-        className={`flex items-start gap-2 py-3 px-4 hover:bg-gray-50 border-b border-gray-100 ${hasChildren ? 'cursor-pointer' : ''}`}
+        className={`flex items-center gap-2 py-3 px-4 hover:bg-gray-50 border-b border-gray-100 ${hasChildren ? 'cursor-pointer' : ''}`}
         style={{ paddingLeft: `${level * 20 + 16}px` }}
         onClick={() => hasChildren && setExpanded(!expanded)}
       >
@@ -88,9 +98,26 @@ function UnitTreeNode({ unit, level = 0 }: { unit: OrganizationUnit; level?: num
             </div>
           )}
         </div>
+        {/* Action buttons */}
+        <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => onEdit(unit)}
+            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            title="Sửa"
+          >
+            <Pencil className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onDelete(unit)}
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="Xóa"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
       {hasChildren && expanded && unit.children?.map((child) => (
-        <UnitTreeNode key={child.id} unit={child} level={level + 1} />
+        <UnitTreeNode key={child.id} unit={child} level={level + 1} onEdit={onEdit} onDelete={onDelete} />
       ))}
     </div>
   )
@@ -98,6 +125,9 @@ function UnitTreeNode({ unit, level = 0 }: { unit: OrganizationUnit; level?: num
 
 export default function ToChucPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showCreateTeamModal, setShowCreateTeamModal] = useState(false)
+  const [editingUnit, setEditingUnit] = useState<OrganizationUnit | null>(null)
+  const queryClient = useQueryClient()
 
   const { data: units, isLoading } = useQuery({
     queryKey: ['organization-units'],
@@ -107,6 +137,36 @@ export default function ToChucPage() {
     },
   })
 
+  const deleteUnit = useMutation({
+    mutationFn: async (id: number) => {
+      await api.delete(`/organization/${id}`)
+    },
+    onSuccess: () => {
+      toast.success('Đã xóa đơn vị')
+      queryClient.invalidateQueries({ queryKey: ['organization-units'] })
+    },
+    onError: (err: unknown) => {
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string }
+      toast.error(axiosErr.response?.data?.message || axiosErr.message || 'Có lỗi xảy ra')
+    },
+  })
+
+  const handleEdit = (unit: OrganizationUnit) => {
+    setEditingUnit(unit)
+    setShowCreateModal(true)
+  }
+
+  const handleDelete = (unit: OrganizationUnit) => {
+    if (confirm(`Xác nhận xóa "${unit.name}"? Hành động này không thể hoàn tác.`)) {
+      deleteUnit.mutate(unit.id)
+    }
+  }
+
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false)
+    setEditingUnit(null)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -114,14 +174,24 @@ export default function ToChucPage() {
           <h1 className="text-3xl font-bold text-gray-900">Tổ chức</h1>
           <p className="text-gray-600 mt-1">Cấu trúc tổ chức đơn vị — lớp học và đội</p>
         </div>
-        <Button
-          variant="primary"
-          className="gap-2"
-          onClick={() => setShowCreateModal(true)}
-        >
-          <Plus className="h-5 w-5" />
-          Thêm đơn vị
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setShowCreateTeamModal(true)}
+          >
+            <Shield className="h-5 w-5" />
+            Tạo đội
+          </Button>
+          <Button
+            variant="primary"
+            className="gap-2"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus className="h-5 w-5" />
+            Thêm đơn vị
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -132,7 +202,7 @@ export default function ToChucPage() {
         <Card>
           <CardContent className="p-0">
             {units.map((unit) => (
-              <UnitTreeNode key={unit.id} unit={unit} />
+              <UnitTreeNode key={unit.id} unit={unit} onEdit={handleEdit} onDelete={handleDelete} />
             ))}
           </CardContent>
         </Card>
@@ -141,7 +211,7 @@ export default function ToChucPage() {
           <CardContent className="pt-12">
             <div className="text-center space-y-4">
               <Users className="h-12 w-12 text-gray-300 mx-auto" />
-              <p className="text-gray-600">Chưa có đơn vị tổ chức nào</p>
+              <p className="text-gray-600">Chưa có đơn vị tổ chức nào.</p>
               <Button variant="primary" onClick={() => setShowCreateModal(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Tạo đơn vị đầu tiên
@@ -152,7 +222,14 @@ export default function ToChucPage() {
       )}
 
       {showCreateModal && (
-        <CreateOrgUnitModal onClose={() => setShowCreateModal(false)} />
+        <CreateOrgUnitModal
+          onClose={handleCloseCreateModal}
+          editingUnit={editingUnit ?? undefined}
+        />
+      )}
+
+      {showCreateTeamModal && (
+        <CreateTeamModal onClose={() => setShowCreateTeamModal(false)} />
       )}
     </div>
   )

@@ -1,6 +1,6 @@
-import { IsDate, IsString, IsOptional, IsInt, IsEnum } from 'class-validator';
+import { IsDate, IsString, IsOptional, IsInt, IsEnum, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
-import { SessionType } from '../../../entities/session.entity';
+import { SessionType } from '../../../common/enums';
 
 export class CreateSessionDto {
   @IsDate()
@@ -22,4 +22,9 @@ export class CreateSessionDto {
   @IsEnum(SessionType)
   @IsOptional()
   sessionType?: SessionType;
+
+  @IsArray()
+  @IsInt({ each: true })
+  @IsOptional()
+  teamIds?: number[];
 }

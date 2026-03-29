@@ -47,6 +47,9 @@ export class Session {
   @Column({ type: 'enum', enum: SessionType, default: SessionType.CLASS })
   sessionType!: SessionType;
 
+  @Column({ type: 'int', array: true, nullable: true })
+  teamIds!: number[];
+
   @CreateDateColumn()
   createdAt!: Date;
 

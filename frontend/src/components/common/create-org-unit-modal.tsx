@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import api from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { X, Search } from 'lucide-react'
-import { UnitType, Branch, TeamType, Member } from '@/types'
+import { UnitType, Branch, TeamType, Member, OrganizationUnit } from '@/types'
 
 const UNIT_TYPE_LABELS: Record<UnitType, string> = {
   xu_doan: 'Xứ đoàn',
@@ -27,19 +28,21 @@ interface CreateOrgUnitModalProps {
   onClose: () => void
   defaultType?: UnitType
   defaultParentId?: number
+  editingUnit?: OrganizationUnit
 }
 
-export function CreateOrgUnitModal({ onClose, defaultType, defaultParentId }: CreateOrgUnitModalProps) {
+export function CreateOrgUnitModal({ onClose, defaultType, defaultParentId, editingUnit }: CreateOrgUnitModalProps) {
   const queryClient = useQueryClient()
+  const isEditing = !!editingUnit
   const [form, setForm] = useState({
-    name: '',
-    type: (defaultType ?? 'lop') as UnitType,
-    branch: '' as Branch | '',
-    parentId: defaultParentId ? String(defaultParentId) : '',
-    description: '',
-    teamType: '' as TeamType | '',
-    leaderId: '' as string,
-    deputyId: '' as string,
+    name: editingUnit?.name ?? '',
+    type: (editingUnit?.type ?? defaultType ?? 'lop') as UnitType,
+    branch: (editingUnit?.branch ?? '') as Branch | '',
+    parentId: editingUnit?.parentId ? String(editingUnit.parentId) : (defaultParentId ? String(defaultParentId) : ''),
+    description: editingUnit?.description ?? '',
+    teamType: (editingUnit?.teamType ?? '') as TeamType | '',
+    leaderId: editingUnit?.leaderId ? String(editingUnit.leaderId) : '',
+    deputyId: editingUnit?.deputyId ? String(editingUnit.deputyId) : '',
     memberIds: [] as number[],
   })
   const [memberSearch, setMemberSearch] = useState('')
@@ -49,7 +52,7 @@ export function CreateOrgUnitModal({ onClose, defaultType, defaultParentId }: Cr
     queryKey: ['org-units'],
     queryFn: async () => {
       const { data } = await api.get<{ id: number; name: string; type: UnitType; branch?: Branch }[]>('/organization')
-      return Array.isArray(data) ? data : (data as { data: unknown[] }).data ?? []
+      return Array.isArray(data) ? data : (data as { data: OrganizationUnit[] }).data ?? []
     },
   })
 
@@ -103,10 +106,16 @@ export function CreateOrgUnitModal({ onClose, defaultType, defaultParentId }: Cr
       if (form.leaderId) payload.leaderId = Number(form.leaderId)
       if (form.deputyId) payload.deputyId = Number(form.deputyId)
       if (form.memberIds.length > 0) payload.memberIds = form.memberIds
-      const { data } = await api.post('/organization', payload)
-      return data
+      if (isEditing) {
+        const { data } = await api.patch(`/organization/${editingUnit!.id}`, payload)
+        return data
+      } else {
+        const { data } = await api.post('/organization', payload)
+        return data
+      }
     },
     onSuccess: () => {
+      toast.success(isEditing ? 'Cập nhật đơn vị thành công!' : 'Thêm đơn vị thành công!')
       queryClient.invalidateQueries({ queryKey: ['organization-units'] })
       queryClient.invalidateQueries({ queryKey: ['org-units'] })
       onClose()
@@ -135,7 +144,7 @@ export function CreateOrgUnitModal({ onClose, defaultType, defaultParentId }: Cr
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
-          <h2 className="text-xl font-bold text-gray-900">Thêm đơn vị tổ chức</h2>
+          <h2 className="text-xl font-bold text-gray-900">{isEditing ? 'Sửa đơn vị tổ chức' : 'Thêm đơn vị tổ chức'}</h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <X className="h-5 w-5" />
           </button>
@@ -337,7 +346,7 @@ export function CreateOrgUnitModal({ onClose, defaultType, defaultParentId }: Cr
               isLoading={createUnit.isPending}
               disabled={createUnit.isPending}
             >
-              Thêm đơn vị
+              {isEditing ? 'Lưu thay đổi' : 'Thêm đơn vị'}
             </Button>
           </div>
         </form>

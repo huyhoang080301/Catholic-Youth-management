@@ -35,6 +35,11 @@ export class OrganizationController {
     return this.organizationService.findTree();
   }
 
+  @Get('join/:code')
+  joinByCode(@Param('code') code: string) {
+    return this.organizationService.joinByCode(code);
+  }
+
   @Get('stats')
   @UseGuards(JwtAuthGuard)
   getStats(): Promise<OrgStats> {
