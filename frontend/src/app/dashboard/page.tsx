@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
 import { useSessions } from '@/hooks/use-attendance'
-import { Spinner } from '@/components/ui/spinner'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { CalendarDays, Users, BookOpen, Shield, ChevronRight } from 'lucide-react'
@@ -128,64 +128,82 @@ export default function DashboardPage() {
       )}
 
       {/* Summary stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Users className="h-8 w-8 text-blue-500" />
-              <div>
-                <p className="text-sm text-gray-600">Tổng đoàn sinh</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {statsLoading ? '--' : (stats?.totalMembers ?? '--')}
-                </p>
+      {statsLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-7 w-12" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <Users className="h-8 w-8 text-blue-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Tổng đoàn sinh</p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {stats?.totalMembers ?? '--'}
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <BookOpen className="h-8 w-8 text-purple-500" />
-              <div>
-                <p className="text-sm text-gray-600">Số lớp</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {statsLoading ? '--' : (stats?.totalClasses ?? '--')}
-                </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <BookOpen className="h-8 w-8 text-purple-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Số lớp</p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {stats?.totalClasses ?? '--'}
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Shield className="h-8 w-8 text-orange-500" />
-              <div>
-                <p className="text-sm text-gray-600">Số đội</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {statsLoading ? '--' : (stats?.totalTeams ?? '--')}
-                </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <Shield className="h-8 w-8 text-orange-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Số đội</p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {stats?.totalTeams ?? '--'}
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <CalendarDays className="h-8 w-8 text-green-500" />
-              <div>
-                <p className="text-sm text-gray-600">Buổi tháng này</p>
-                <p className="text-3xl font-bold text-gray-900">
-                  {sessions?.filter((s) => {
-                    const month = new Date(s.date).getMonth()
-                    const currentMonth = new Date().getMonth()
-                    return month === currentMonth
-                  }).length || 0}
-                </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <CalendarDays className="h-8 w-8 text-green-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Buổi tháng này</p>
+                  <p className="text-3xl font-bold text-gray-900">
+                    {sessions?.filter((s) => {
+                      const month = new Date(s.date).getMonth()
+                      const currentMonth = new Date().getMonth()
+                      return month === currentMonth
+                    }).length || 0}
+                  </p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Charts */}
       {stats && (stats.branchBreakdown?.length > 0 || stats.genderBreakdown?.length > 0) && (
@@ -313,7 +331,25 @@ export default function DashboardPage() {
           </Link>
         </div>
         {statsLoading ? (
-          <div className="flex justify-center py-8"><Spinner /></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="pt-5 pb-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </div>
+                    <Skeleton className="h-5 w-5 rounded" />
+                  </div>
+                  <div className="flex items-center justify-between mt-4">
+                    <Skeleton className="h-8 w-16" />
+                    <Skeleton className="h-8 w-16" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : stats?.classes && stats.classes.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {stats.classes.map((cls) => (
@@ -364,7 +400,24 @@ export default function DashboardPage() {
           </Link>
         </div>
         {statsLoading ? (
-          <div className="flex justify-center py-8"><Spinner /></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[...Array(2)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="pt-5 pb-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </div>
+                    <div className="text-right space-y-1">
+                      <Skeleton className="h-8 w-10 ml-auto" />
+                      <Skeleton className="h-3 w-14 ml-auto" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : stats?.teams && stats.teams.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {stats.teams.map((team) => (
@@ -413,7 +466,22 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Buổi sinh hoạt gần đây</h2>
         {sessionsLoading ? (
-          <div className="flex justify-center py-8"><Spinner /></div>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="py-4 px-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-3 w-28" />
+                      <Skeleton className="h-3 w-36" />
+                    </div>
+                    <Skeleton className="h-8 w-16 rounded-lg" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : sessions && sessions.length > 0 ? (
           <div className="space-y-3">
             {sessions.slice(0, 5).map((session) => (

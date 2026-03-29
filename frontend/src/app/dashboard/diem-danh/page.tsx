@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { SessionCard } from '@/components/attendance/session-card'
 import { useSessions } from '@/hooks/use-attendance'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ExcelImportButton } from '@/components/common/excel-import-button'
 import { CreateSessionModal } from '@/components/common/create-session-modal'
 import { Plus, Users, Calendar, Globe, Pencil, Trash2 } from 'lucide-react'
@@ -243,8 +243,19 @@ export default function DiemDanhPage() {
       {tab === 'lop' && (
         <>
           {loadingClasses ? (
-            <div className="flex justify-center py-12">
-              <Spinner size="lg" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </div>
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-2/3" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : classes && classes.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -277,8 +288,19 @@ export default function DiemDanhPage() {
           </div>
 
           {loadingSessions ? (
-            <div className="flex justify-center py-12">
-              <Spinner size="lg" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-5 w-12 rounded-full" />
+                    </div>
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : sortedClassSessions.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -326,8 +348,19 @@ export default function DiemDanhPage() {
           </div>
 
           {loadingSessions ? (
-            <div className="flex justify-center py-12">
-              <Spinner size="lg" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-5 w-12 rounded-full" />
+                    </div>
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : sortedGeneralSessions.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

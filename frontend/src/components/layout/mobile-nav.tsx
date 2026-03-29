@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 import { useUnreadNotificationCount } from '@/hooks/use-notifications'
 
 const navItems = [
-  { href: '/dashboard', label: 'Bảng điều khiển', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Trang chủ', icon: LayoutDashboard },
   { href: '/dashboard/diem-danh', label: 'Điểm danh', icon: CheckSquare },
   { href: '/dashboard/thanh-vien', label: 'Thành viên', icon: Users },
   { href: '/dashboard/to-chuc', label: 'Tổ chức', icon: Building2 },
@@ -47,7 +47,7 @@ export function MobileNav() {
                 {unreadCount}
               </span>
             )}
-            <span className="text-xs">{item.label.split(' ')[0]}</span>
+            <span className="text-[10px] leading-tight text-center line-clamp-2">{item.label}</span>
           </Link>
         )
       })}

@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/react-query'
 import api from '@/lib/api'
 import { OrganizationUnit } from '@/types'
@@ -195,8 +195,19 @@ export default function ToChucPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Spinner size="lg" />
+        <div className="space-y-3">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-5 w-16 rounded-full ml-auto" />
+                </div>
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       ) : units && units.length > 0 ? (
         <Card>

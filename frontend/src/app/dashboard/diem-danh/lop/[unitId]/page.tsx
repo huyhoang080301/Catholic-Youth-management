@@ -9,7 +9,7 @@ import api from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate } from '@/lib/utils'
 import { ArrowLeft, Plus, Calendar, Users, CalendarDays } from 'lucide-react'
 import { OrganizationUnit, Member, Session, Attendance, AttendanceStatus, AttendanceRecord } from '@/types'
@@ -158,8 +158,24 @@ export default function ClassDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-20">
-        <Spinner size="lg" />
+      <div className="space-y-4">
+        <div className="h-8 w-64 rounded-lg bg-gray-200 animate-pulse" />
+        <div className="h-4 w-48 rounded bg-gray-200 animate-pulse" />
+        <div className="space-y-3 mt-6">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                  <Skeleton className="h-10 w-20 rounded-lg" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     )
   }
@@ -311,8 +327,20 @@ export default function ClassDetailPage() {
               </div>
 
               {loadingAttendance ? (
-                <div className="flex justify-center py-8">
-                  <Spinner />
+                <div className="space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="space-y-2 flex-1">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-3 w-28" />
+                          </div>
+                          <Skeleton className="h-10 w-20 rounded-lg" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               ) : filteredMembers.length === 0 ? (
                 <Card>

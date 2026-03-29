@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { AttendanceList } from '@/components/attendance/attendance-list'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate } from '@/lib/utils'
 import { useSession, useSessionMembers, useSubmitAttendance } from '@/hooks/use-attendance'
 import { AttendanceStatus } from '@/types'
@@ -50,8 +50,24 @@ export default function SessionAttendancePage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
+      <div className="space-y-4">
+        <div className="h-8 w-72 rounded-lg bg-gray-200 animate-pulse" />
+        <div className="h-4 w-48 rounded bg-gray-200 animate-pulse" />
+        <div className="space-y-3 mt-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                  <Skeleton className="h-10 w-20 rounded-lg" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     )
   }

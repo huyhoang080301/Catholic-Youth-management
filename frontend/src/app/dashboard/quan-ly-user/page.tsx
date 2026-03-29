@@ -7,7 +7,7 @@ import api from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Spinner } from '@/components/ui/spinner'
+import { Skeleton } from '@/components/ui/skeleton'
 import { CreateUserModal } from '@/components/common/create-user-modal'
 import { ExcelImportButton } from '@/components/common/excel-import-button'
 import { User, UserUnitRole } from '@/types'
@@ -119,8 +119,26 @@ export default function QuanLyUserPage() {
 
       {/* Users list */}
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Spinner size="lg" />
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       ) : filteredUsers && filteredUsers.length > 0 ? (
         <div className="space-y-3">
@@ -285,7 +303,14 @@ function RoleModal({ user, onClose }: { user: User; onClose: () => void }) {
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">Vai trò hiện tại</p>
             {isLoading ? (
-              <Spinner size="sm" />
+              <div className="space-y-2">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <Skeleton className="h-5 w-5 rounded" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                ))}
+              </div>
             ) : roles && roles.length > 0 ? (
               <div className="space-y-2">
                 {roles.map((r) => {
