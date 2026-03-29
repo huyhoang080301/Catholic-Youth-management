@@ -1,0 +1,22 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "Running frontend unit tests..."
+cd frontend
+npm run test
+if [ $? -ne 0 ]; then
+  echo "Unit tests failed. Commit aborted."
+  exit 1
+fi
+echo "Unit tests passed!"
+
+echo "Running backend tests..."
+cd ../backend
+npm run test
+if [ $? -ne 0 ]; then
+  echo "Backend tests failed. Commit aborted."
+  exit 1
+fi
+echo "Backend tests passed!"
+
+echo "All tests passed! Proceeding with commit."

@@ -63,3 +63,11 @@ prisma/dev.db
 uploads/
 
 .clawd/
+
+# Playwright
+screenshots/
+test-results/
+playwright-report/
+
+# Test configs (use jest, not vitest)
+frontend/vitest.config.ts
