@@ -109,7 +109,7 @@ export default function QuanLyUserPage() {
       </div>
 
       {/* Search */}
-      <div className="relative max-w-md">
+      <div className="relative w-full">
         <Input
           placeholder="Tìm kiếm theo tên, email, số điện thoại..."
           value={searchQuery}

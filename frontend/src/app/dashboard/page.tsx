@@ -88,7 +88,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Bảng điều khiển</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Bảng điều khiển</h1>
         <p className="text-gray-600 mt-2 flex items-center gap-2">
           <CalendarDays className="h-5 w-5" />
           {formatDate(today)}
@@ -307,7 +307,7 @@ export default function DashboardPage() {
       {/* Classes section */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Danh sách lớp học</h2>
+          <h2 className="text-lg md:text-xl font-bold text-gray-900">Danh sách lớp học</h2>
           <Link href="/dashboard/diem-danh">
             <Button variant="outline" size="sm">Xem tất cả</Button>
           </Link>
@@ -358,7 +358,7 @@ export default function DashboardPage() {
       {/* Teams section */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Danh sách đội</h2>
+          <h2 className="text-lg md:text-xl font-bold text-gray-900">Danh sách đội</h2>
           <Link href="/dashboard/to-chuc">
             <Button variant="outline" size="sm">Quản lý tổ chức</Button>
           </Link>
@@ -411,7 +411,7 @@ export default function DashboardPage() {
 
       {/* Recent sessions */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Buổi sinh hoạt gần đây</h2>
+        <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-4">Buổi sinh hoạt gần đây</h2>
         {sessionsLoading ? (
           <div className="flex justify-center py-8"><Spinner /></div>
         ) : sessions && sessions.length > 0 ? (

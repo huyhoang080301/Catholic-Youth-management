@@ -43,14 +43,14 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
         <Card className="cursor-pointer hover:shadow-md transition-shadow">
           <CardContent className="pt-6">
             <div className="space-y-3">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2 flex-wrap">
                 <div>
                   <h3 className="font-semibold text-gray-900">{member.fullName}</h3>
                   {member.baptismName && (
                     <p className="text-xs text-gray-600 mt-1">Thánh danh: {member.baptismName}</p>
                   )}
                 </div>
-                <Badge variant={member.isActive ? 'success' : 'default'}>
+                <Badge variant={member.isActive ? 'success' : 'default'} className="shrink-0">
                   {member.isActive ? 'Hoạt động' : 'Không hoạt động'}
                 </Badge>
               </div>
@@ -98,7 +98,7 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
         {onEdit && (
           <button
             onClick={handleEdit}
-            className="p-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-400 hover:text-blue-600 transition-colors shadow-sm"
+            className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-400 hover:text-blue-600 transition-colors shadow-sm"
             title="Sửa"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -107,7 +107,7 @@ export function MemberCard({ member, onEdit, onDelete }: MemberCardProps) {
         {onDelete && (
           <button
             onClick={handleDelete}
-            className="p-1.5 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-400 hover:text-red-600 transition-colors shadow-sm"
+            className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-400 hover:text-red-600 transition-colors shadow-sm"
             title="Xóa"
           >
             <Trash2 className="h-3.5 w-3.5" />

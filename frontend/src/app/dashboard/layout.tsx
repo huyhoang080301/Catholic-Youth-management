@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { MobileNav } from '@/components/layout/mobile-nav'
+import { MobileDrawer } from '@/components/layout/mobile-drawer'
 
 export default function DashboardLayout({
   children,
@@ -15,10 +16,13 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      
+
+      {/* Mobile drawer overlay */}
+      <MobileDrawer open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
-        
+
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
             {children}
